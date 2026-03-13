@@ -26,7 +26,7 @@ export default function Home() {
                 </div>
                 <div className="flex">
                   <Image
-                    src="/assets/logo.jfif"
+                    src="/assets/logo.jpg"
                     alt="Moose Barbershop logo"
                     width={360}
                     height={216}

@@ -1,4 +1,4 @@
-import { desc, inArray } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import { Container, Card, Button } from "@/components/ui";
@@ -19,18 +19,34 @@ export default async function AdminPage() {
   const rows = await db
     .select()
     .from(bookings)
-    .where(inArray(bookings.status, ["CONFIRMED", "PENDING_PAYMENT"] as const))
     .orderBy(desc(bookings.startAt))
     .limit(500);
 
-  const events = rows
-    .filter((b) => b.status === "CONFIRMED")
-    .map((b) => ({
-      id: b.id,
-      title: `${b.serviceName} — ${b.customerName}`,
-      start: b.startAt.toISOString(),
-      end: b.endAt.toISOString(),
-    }));
+  const statusLabel: Record<string, string> = {
+    PENDING_PAYMENT: "Pending",
+    CONFIRMED: "Paid",
+    CANCELLED: "Cancelled",
+    EXPIRED: "Expired",
+  };
+
+  const events = rows.map((b) => ({
+    id: b.id,
+    title: b.customerName,
+    start: b.startAt.toISOString(),
+    end: b.endAt.toISOString(),
+    status: b.status,
+  }));
+
+  const bookingsData = rows.map((b) => ({
+    id: b.id,
+    customerName: b.customerName,
+    customerEmail: b.customerEmail,
+    customerPhone: b.customerPhone,
+    serviceName: b.serviceName,
+    priceCad: b.priceCad,
+    status: b.status,
+    timeRange: `${formatTimeFromUtc(b.startAt)} – ${formatTimeFromUtc(b.endAt)}`,
+  }));
 
   return (
     <div className="min-h-screen">
@@ -44,8 +60,7 @@ export default async function AdminPage() {
               Bookings calendar
             </h1>
             <p className="text-sm text-white/70">
-              Confirmed bookings appear on the calendar. Pending payments show in
-              the list.
+              All bookings by status. Paid (confirmed) appear on the calendar.
             </p>
           </div>
           <Button href="/admin/logout" variant="secondary">
@@ -53,7 +68,7 @@ export default async function AdminPage() {
           </Button>
         </div>
 
-        <AdminCalendar events={events} />
+        <AdminCalendar events={events} bookings={bookingsData} statusLabel={statusLabel} />
 
         <Card>
           <div className="flex items-baseline justify-between gap-6">
@@ -79,7 +94,7 @@ export default async function AdminPage() {
                   <tr key={b.id} className="border-b border-white/5">
                     <td className="py-3">
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold">
-                        {b.status}
+                        {statusLabel[b.status] ?? b.status}
                       </span>
                     </td>
                     <td className="py-3 text-white/80">

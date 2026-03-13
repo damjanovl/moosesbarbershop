@@ -65,6 +65,15 @@ Recommended: **Vercel** (free preview deployments).
 
 For Square webhooks, you need a stable public URL (Vercel previews work well; tunnels also work for short demos).
 
+### Instagram “latest posts” section (optional)
+
+The homepage has an Instagram section that can show the latest posts if you set:
+
+- `INSTAGRAM_USER_ID`
+- `INSTAGRAM_ACCESS_TOKEN`
+
+If not set, it falls back to showing the local portfolio photos and links to the Instagram profile.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

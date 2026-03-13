@@ -72,3 +72,9 @@ body {
   border: 0;
   color: #0b0b0f;
 }
+.rbc-event-label {
+  display: none !important;
+}
+.rbc-current-time-indicator {
+  height: 5px !important;
+}

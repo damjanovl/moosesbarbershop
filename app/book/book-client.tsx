@@ -16,6 +16,10 @@ function formatTimeToronto(iso: string) {
   }).format(d);
 }
 
+function isSlotInPast(iso: string) {
+  return new Date(iso) <= new Date();
+}
+
 function todayTorontoISO() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Toronto",
@@ -246,21 +250,26 @@ export default function BookClient() {
                       No available times on this date.
                     </div>
                   ) : (
-                    slots.map((iso) => (
-                      <button
-                        key={iso}
-                        type="button"
-                        onClick={() => setSlotIso(iso)}
-                        className={cn(
-                          "h-11 rounded-xl border text-sm font-semibold transition",
-                          slotIso === iso
-                            ? "border-[color:var(--color-accent)]/60 bg-white/10"
-                            : "border-white/10 bg-white/5 hover:bg-white/10",
-                        )}
-                      >
-                        {formatTimeToronto(iso)}
-                      </button>
-                    ))
+                    slots.map((iso) => {
+                      const past = isSlotInPast(iso);
+                      return (
+                        <button
+                          key={iso}
+                          type="button"
+                          disabled={past}
+                          onClick={() => !past && setSlotIso(iso)}
+                          className={cn(
+                            "h-11 rounded-xl border text-sm font-semibold transition",
+                            past && "cursor-not-allowed opacity-50",
+                            slotIso === iso
+                              ? "border-[color:var(--color-accent)]/60 bg-white/10"
+                              : "border-white/10 bg-white/5 hover:bg-white/10",
+                          )}
+                        >
+                          {formatTimeToronto(iso)}
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               </div>

@@ -1,8 +1,10 @@
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Button, Card, Container } from "@/components/ui";
+import { InstagramLatestSection } from "@/components/instagram-latest";
 import { SERVICES } from "@/lib/services";
 import { Check } from "lucide-react";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -21,6 +23,16 @@ export default function Home() {
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80">
                   Premium Barbershop Experience • Hamilton, Ontario
+                </div>
+                <div className="flex">
+                  <Image
+                    src="/assets/logo.jfif"
+                    alt="Moose Barbershop logo"
+                    width={360}
+                    height={216}
+                    className="rounded-2xl object-contain"
+                    priority
+                  />
                 </div>
                 <h1 className="text-balance text-4xl font-semibold tracking-tight md:text-6xl">
                   Where style meets craftsmanship.
@@ -53,7 +65,17 @@ export default function Home() {
               </div>
 
               <Card className="relative overflow-hidden p-0">
-                <div className="aspect-[4/3] w-full bg-gradient-to-br from-white/10 via-white/5 to-[color:var(--color-accent)]/10" />
+                <div className="relative aspect-[3/4] w-full">
+                  <video
+                    src="/assets/promo-video.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/20 to-black/10" />
+                </div>
                 <div className="absolute inset-0 p-8">
                   <div className="space-y-2">
                     <div className="text-sm font-semibold text-white/80">
@@ -63,8 +85,8 @@ export default function Home() {
                       Premium cuts. Clean fades. Sharp lines.
                     </div>
                     <p className="text-sm text-white/70">
-                      Swap this placeholder for real portfolio photos when
-                      you’re ready.
+                      Precision work, premium service, and an experience built
+                      around confidence.
                     </p>
                   </div>
                 </div>
@@ -84,9 +106,15 @@ export default function Home() {
                   Crafting confidence through style.
                 </h2>
                 <p className="text-white/75 leading-7">
-                  A great haircut is more than a service—it’s an experience. Our
-                  barbers blend traditional techniques with modern trends to
-                  make you look and feel your best.
+                  At Moose Barbershop, we believe that a great haircut is more
+                  than just a service—it&apos;s an experience that builds
+                  confidence and reflects your unique personality.
+                  <br />
+                  <br />
+                  Our master barbers combine traditional techniques with modern
+                  trends to deliver exceptional results every time. With years
+                  of expertise and a passion for perfection, we&apos;re
+                  dedicated to making you look and feel your absolute best.
                 </p>
               </div>
               <div className="grid gap-4">
@@ -113,38 +141,7 @@ export default function Home() {
           </Container>
         </section>
 
-        <section id="portfolio" className="py-20">
-          <Container>
-            <div className="flex items-end justify-between gap-6">
-              <div className="space-y-2">
-                <div className="text-xs font-semibold tracking-widest text-white/60">
-                  OUR WORK
-                </div>
-                <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  Masterpieces we’ve created.
-                </h2>
-                <p className="max-w-2xl text-sm text-white/70">
-                  Every client is a canvas. Here’s a preview of the vibe—drop in
-                  real photos anytime.
-                </p>
-              </div>
-              <Button href="/book" variant="secondary" className="hidden md:inline-flex">
-                Book Now
-              </Button>
-            </div>
-
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-              {["Premium Haircut", "Stylish Cut", "Beard Trim", "Complete Package"].map(
-                (label) => (
-                  <Card key={label} className="p-0 overflow-hidden">
-                    <div className="aspect-square bg-gradient-to-br from-white/10 via-white/5 to-black" />
-                    <div className="p-4 text-sm font-semibold">{label}</div>
-                  </Card>
-                ),
-              )}
-            </div>
-          </Container>
-        </section>
+        <InstagramLatestSection />
 
         <section id="pricing" className="py-20">
           <Container>
@@ -208,67 +205,152 @@ export default function Home() {
           </Container>
         </section>
 
-        <section id="contact" className="py-20">
+        <section id="portfolio" className="py-20">
           <Container>
-            <div className="grid gap-10 md:grid-cols-2">
+            <div className="flex items-end justify-between gap-6">
               <div className="space-y-2">
                 <div className="text-xs font-semibold tracking-widest text-white/60">
-                  CONTACT US
+                  OUR WORK
                 </div>
                 <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  Visit us today.
+                  Masterpieces we've created.
                 </h2>
-                <p className="text-sm text-white/70">
-                  Walk-ins welcome when available—booking ahead is recommended.
+                <p className="max-w-2xl text-sm text-white/70">
+                  Every client is a canvas. Here's a preview of the vibe—drop in
+                  real photos anytime.
                 </p>
               </div>
+              <Button href="/book" variant="secondary" className="hidden md:inline-flex">
+                Book Now
+              </Button>
+            </div>
 
-              <div className="grid gap-4">
-                <Card>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+              {[
+                { src: "/portfolio/1.jpeg", label: "Premium Haircut" },
+                { src: "/portfolio/2.jpeg", label: "Stylish Cut" },
+                { src: "/portfolio/3.jpeg", label: "Beard Trim" },
+                { src: "/portfolio/4.jpeg", label: "Complete Package" },
+              ].map((p) => (
+                <Card key={p.src} className="p-0 overflow-hidden">
+                  <div className="relative aspect-square">
+                    <Image
+                      src={p.src}
+                      alt={p.label}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0" />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 text-sm font-semibold">
+                      {p.label}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </Container>
+        </section>
+
+        <section id="contact" className="py-20">
+          <Container>
+            <div className="mb-10 space-y-2">
+              <div className="text-xs font-semibold tracking-widest text-white/60">
+                CONTACT US
+              </div>
+              <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+                Visit us today.
+              </h2>
+              <p className="text-sm text-white/70">
+                Walk-ins welcome when available—booking ahead is recommended.
+              </p>
+            </div>
+
+            <div className="grid gap-8 lg:grid-cols-5">
+              <div className="space-y-6 lg:col-span-2">
+                <div>
                   <div className="text-sm font-semibold">Location</div>
                   <div className="mt-1 text-sm text-white/70">
                     1001 Rymal Rd East
                     <br />
                     Hamilton, Ontario
                   </div>
-                  <div className="mt-3">
-                    <Button
-                      href="https://www.google.com/maps/search/?api=1&query=1001+Rymal+Rd+East+Hamilton+Ontario"
-                      variant="ghost"
-                    >
-                      View on Google Maps
-                    </Button>
-                  </div>
-                </Card>
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=1001+Rymal+Rd+East+Hamilton+Ontario"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-block text-sm font-medium text-white/90 underline-offset-4 hover:underline"
+                  >
+                    View on Google Maps
+                  </a>
+                </div>
 
-                <Card>
+                <div>
                   <div className="text-sm font-semibold">Hours</div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-white/70">
-                    <div>Monday</div>
-                    <div>12:00 PM - 6:00 PM</div>
-                    <div>Tuesday</div>
-                    <div>12:00 PM - 7:00 PM</div>
-                    <div>Wednesday</div>
-                    <div>12:00 PM - 7:00 PM</div>
-                    <div>Thursday</div>
-                    <div>11:00 AM - 8:00 PM</div>
-                    <div>Friday</div>
-                    <div>11:00 AM - 8:00 PM</div>
-                    <div>Saturday</div>
-                    <div>10:00 AM - 5:00 PM</div>
-                    <div>Sunday</div>
-                    <div>Closed</div>
+                  <div className="mt-2 space-y-1 text-sm text-white/70">
+                    <div className="flex justify-between gap-4">
+                      <span>Monday</span>
+                      <span>12:00 PM - 6:00 PM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Tuesday</span>
+                      <span>12:00 PM - 7:00 PM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Wednesday</span>
+                      <span>12:00 PM - 7:00 PM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Thursday</span>
+                      <span>11:00 AM - 8:00 PM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Friday</span>
+                      <span>11:00 AM - 8:00 PM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Saturday</span>
+                      <span>10:00 AM - 5:00 PM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Sunday</span>
+                      <span>Closed</span>
+                    </div>
                   </div>
-                </Card>
+                </div>
 
-                <Card>
-                  <div className="text-sm font-semibold">Phone & Email</div>
-                  <div className="mt-1 text-sm text-white/70">
+                <div>
+                  <div className="text-sm font-semibold">Phone</div>
+                  <a
+                    href="tel:+12892444562"
+                    className="mt-1 block text-sm text-white/70 hover:text-white"
+                  >
                     (289) 244-4562
-                    <br />
+                  </a>
+                </div>
+
+                <div>
+                  <div className="text-sm font-semibold">Email</div>
+                  <a
+                    href="mailto:info@moosebarbershop.com"
+                    className="mt-1 block text-sm text-white/70 hover:text-white"
+                  >
                     info@moosebarbershop.com
-                  </div>
-                </Card>
+                  </a>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-white/10 lg:col-span-3">
+                <iframe
+                  src="https://maps.google.com/maps?q=1001+Rymal+Rd+East+Hamilton+Ontario&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                  width="100%"
+                  height="100%"
+                  style={{ minHeight: "320px" }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Moose Barbershop location"
+                  className="block w-full"
+                />
               </div>
             </div>
           </Container>

@@ -72,19 +72,34 @@ export function AdminDashboard({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchAdminCalendarData(viewBarber)
-      .then((json) => {
+
+    async function load() {
+      try {
+        let json = await fetchAdminCalendarData(viewBarber);
         if (cancelled) return;
-        if (json) setData(json);
-        else setData(initialData);
-      })
-      .catch(() => {
+        if (json) {
+          setData(json);
+          return;
+        }
+        const res = await fetch(
+          `/api/admin/calendar?barber=${encodeURIComponent(viewBarber)}`,
+          { credentials: "include", cache: "no-store" },
+        );
         if (cancelled) return;
-        setData(initialData);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+        if (res.ok) {
+          const apiData = await res.json();
+          setData(apiData);
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled) setData(initialData);
+    }
+
+    load().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     return () => {
       cancelled = true;
@@ -150,6 +165,7 @@ export function AdminDashboard({
         {isMainAdmin && <AddBarberForm barbers={data.barbers} />}
 
         <AdminCalendar
+          key={data.viewBarberId}
           events={data.events}
           blocks={data.blocks}
           bookings={data.bookings}

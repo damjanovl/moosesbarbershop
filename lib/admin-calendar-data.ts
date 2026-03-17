@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_noStore } from "next/cache";
 import { desc, eq, inArray } from "drizzle-orm";
 
 import { getAdminUserIdFromCookies } from "@/lib/admin-auth";
@@ -9,6 +10,7 @@ import { adminUsers, bookings, calendarBlocks } from "@/lib/db/schema";
 import { formatTimeFromUtc } from "@/lib/time";
 
 export async function getAdminCalendarData(barberParam: string | null) {
+  unstable_noStore();
   const userId = await getAdminUserIdFromCookies();
   if (!userId) {
     return null;

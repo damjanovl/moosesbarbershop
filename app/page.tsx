@@ -39,8 +39,7 @@ export default function Home() {
                 </h1>
                 <p className="max-w-xl text-pretty text-base leading-7 text-white/75 md:text-lg">
                   Expert barbers delivering exceptional cuts and grooming
-                  services. Book online in minutes and secure your slot with a{" "}
-                  <span className="font-semibold text-white">$10 deposit</span>.
+                  services. Book <span className="font-semibold text-white">online</span> in minutes and secure your slot.
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Button href="/book">Book Your Appointment</Button>
@@ -364,7 +363,7 @@ export default function Home() {
                   Ready for a fresh cut?
                 </div>
                 <div className="text-sm text-white/70">
-                  Pick a time slot, put down a $10 deposit, and you’re booked.
+                  Pick a time slot, put down a 50% deposit, and you’re booked.
                 </div>
               </div>
               <Button href="/book">Book Appointment</Button>

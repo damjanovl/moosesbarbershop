@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { Button, Card, Container, cn } from "@/components/ui";
-import { DEPOSIT_CAD } from "@/lib/business";
+import { getDepositCad } from "@/lib/business";
 import { SERVICES, type ServiceKey, getService } from "@/lib/services";
+
+type Barber = { id: string; name: string };
 
 function formatTimeToronto(iso: string) {
   const d = new Date(iso);
@@ -39,6 +41,8 @@ export default function BookClient() {
   const search = useSearchParams();
   const preselect = (search.get("service") ?? "") as ServiceKey;
 
+  const [barbers, setBarbers] = useState<Barber[]>([]);
+  const [barberId, setBarberId] = useState<string | null>(null);
   const [serviceKey, setServiceKey] = useState<ServiceKey | null>(
     SERVICES.some((s) => s.key === preselect) ? preselect : null,
   );
@@ -61,16 +65,29 @@ export default function BookClient() {
   );
 
   useEffect(() => {
+    let cancelled = false;
+    fetch("/api/barbers")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setBarbers(Array.isArray(data.barbers) ? data.barbers : []);
+        if (data.barbers?.length === 1) setBarberId(data.barbers[0].id);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     setSlotIso(null);
     setError(null);
-    if (!serviceKey) return;
+    if (!serviceKey || !barberId) return;
 
     let cancelled = false;
     setLoadingSlots(true);
     fetch(
       `/api/availability?date=${encodeURIComponent(
         dateISO,
-      )}&service=${encodeURIComponent(serviceKey)}`,
+      )}&service=${encodeURIComponent(serviceKey)}&barberId=${encodeURIComponent(barberId)}`,
     )
       .then(async (r) => {
         if (!r.ok)
@@ -96,10 +113,10 @@ export default function BookClient() {
     return () => {
       cancelled = true;
     };
-  }, [dateISO, serviceKey]);
+  }, [dateISO, serviceKey, barberId]);
 
   async function onCheckout() {
-    if (!serviceKey || !slotIso) return;
+    if (!barberId || !serviceKey || !slotIso) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -107,6 +124,7 @@ export default function BookClient() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          barberId,
           serviceKey,
           startAtIso: slotIso,
           customerName: name,
@@ -127,7 +145,7 @@ export default function BookClient() {
   }
 
   const step =
-    !serviceKey ? 1 : !slotIso ? 2 : !name || !email || !phone ? 3 : 4;
+    !barberId ? 0 : !serviceKey ? 1 : !slotIso ? 2 : !name || !email || !phone ? 3 : 4;
 
   return (
     <div className="min-h-screen">
@@ -141,7 +159,7 @@ export default function BookClient() {
           </h1>
           <p className="text-sm text-white/70">
             Choose a service, pick a time, then secure your slot with a{" "}
-            <span className="font-semibold text-white">${DEPOSIT_CAD} deposit</span>{" "}
+            <span className="font-semibold text-white">50% deposit</span>{" "}
             via Square.
           </p>
         </div>
@@ -152,10 +170,18 @@ export default function BookClient() {
               <span
                 className={cn(
                   "rounded-full px-3 py-1 border border-white/10",
+                  step === 0 && "text-white border-white/25",
+                )}
+              >
+                1 Barber
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-3 py-1 border border-white/10",
                   step === 1 && "text-white border-white/25",
                 )}
               >
-                1 Service
+                2 Service
               </span>
               <span
                 className={cn(
@@ -163,7 +189,7 @@ export default function BookClient() {
                   step === 2 && "text-white border-white/25",
                 )}
               >
-                2 Date & Time
+                3 Date & Time
               </span>
               <span
                 className={cn(
@@ -171,7 +197,7 @@ export default function BookClient() {
                   step === 3 && "text-white border-white/25",
                 )}
               >
-                3 Details
+                4 Details
               </span>
               <span
                 className={cn(
@@ -179,13 +205,39 @@ export default function BookClient() {
                   step === 4 && "text-white border-white/25",
                 )}
               >
-                4 Payment
+                5 Payment
               </span>
             </div>
 
             <div className="mt-6 space-y-8">
               <div className="space-y-3">
-                <div className="text-sm font-semibold">Choose your service</div>
+                <div className="text-sm font-semibold">Choose your barber</div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {barbers.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setBarberId(b.id)}
+                      className={cn(
+                        "text-left rounded-2xl border p-4 transition",
+                        barberId === b.id
+                          ? "border-[color:var(--color-accent)]/50 bg-white/10"
+                          : "border-white/10 bg-white/5 hover:bg-white/10",
+                      )}
+                    >
+                      <div className="font-semibold">{b.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                className={cn(
+                  "space-y-3",
+                  !barberId && "opacity-50 pointer-events-none",
+                )}
+              >
+              <div className="text-sm font-semibold">Choose your service</div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {SERVICES.map((s) => (
                     <button
@@ -330,6 +382,10 @@ export default function BookClient() {
               <div className="text-sm font-semibold">Booking summary</div>
               <div className="space-y-2 text-sm text-white/70">
                 <div className="flex justify-between gap-4">
+                  <span>Barber</span>
+                  <span className="text-white">{barbers.find((b) => b.id === barberId)?.name ?? "—"}</span>
+                </div>
+                <div className="flex justify-between gap-4">
                   <span>Service</span>
                   <span className="text-white">{service?.name ?? "—"}</span>
                 </div>
@@ -346,8 +402,10 @@ export default function BookClient() {
                   </span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span>Deposit</span>
-                  <span className="text-white">${DEPOSIT_CAD}</span>
+                  <span>Deposit (50%)</span>
+                  <span className="text-white">
+                    ${service ? getDepositCad(service.priceCAD) : "—"}
+                  </span>
                 </div>
               </div>
 
@@ -365,6 +423,7 @@ export default function BookClient() {
                 className="w-full"
                 disabled={
                   submitting ||
+                  !barberId ||
                   !serviceKey ||
                   !slotIso ||
                   !name ||

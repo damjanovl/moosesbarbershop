@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { addDays } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
-import { and, gt, inArray, lt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
 
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
-import { bookings } from "@/lib/db/schema";
+import { bookings, calendarBlocks } from "@/lib/db/schema";
 import { SHOP_TIMEZONE } from "@/lib/business";
 import { getService, type ServiceKey } from "@/lib/services";
 import { getAvailableSlotsUtc } from "@/lib/availability";
@@ -14,6 +14,7 @@ import { getAvailableSlotsUtc } from "@/lib/availability";
 const QuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   service: z.string(),
+  barberId: z.string().min(1),
 });
 
 export async function GET(req: Request) {
@@ -24,6 +25,7 @@ export async function GET(req: Request) {
   const parsed = QuerySchema.safeParse({
     date: url.searchParams.get("date"),
     service: url.searchParams.get("service"),
+    barberId: url.searchParams.get("barberId"),
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -34,6 +36,7 @@ export async function GET(req: Request) {
 
   const dateISO = parsed.data.date;
   const serviceKey = parsed.data.service as ServiceKey;
+  const barberId = parsed.data.barberId;
   const service = getService(serviceKey);
 
   const dayStartUtc = fromZonedTime(
@@ -57,6 +60,7 @@ export async function GET(req: Request) {
     .from(bookings)
     .where(
       and(
+        eq(bookings.barberId, barberId),
         lt(bookings.startAt, dayEndUtc),
         gt(bookings.endAt, dayStartUtc),
         or(
@@ -69,9 +73,25 @@ export async function GET(req: Request) {
       ),
     );
 
-  const busy = rows
+  const busyFromBookings = rows
     .filter((r) => r.status === "CONFIRMED" || (r.expiresAt && r.expiresAt > now))
     .map((r) => ({ startAt: r.startAt, endAt: r.endAt }));
+
+  const blocks = await db
+    .select({ startAt: calendarBlocks.startAt, endAt: calendarBlocks.endAt })
+    .from(calendarBlocks)
+    .where(
+      and(
+        eq(calendarBlocks.barberId, barberId),
+        lt(calendarBlocks.startAt, dayEndUtc),
+        gt(calendarBlocks.endAt, dayStartUtc),
+      ),
+    );
+
+  const busy = [
+    ...busyFromBookings,
+    ...blocks.map((b) => ({ startAt: b.startAt, endAt: b.endAt })),
+  ];
 
   const slots = getAvailableSlotsUtc({
     dateISO,

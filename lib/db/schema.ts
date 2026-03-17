@@ -1,7 +1,22 @@
-import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+
+export const adminUsers = pgTable("admin_users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  isMainAdmin: boolean("is_main_admin").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type AdminUserRow = typeof adminUsers.$inferSelect;
 
 export const bookings = pgTable("bookings", {
   id: text("id").primaryKey(),
+
+  barberId: text("barber_id").notNull(), // FK to admin_users
 
   status: text("status").notNull(), // PENDING_PAYMENT | CONFIRMED | CANCELLED | EXPIRED
 
@@ -32,4 +47,17 @@ export const bookings = pgTable("bookings", {
 });
 
 export type BookingRow = typeof bookings.$inferSelect;
+
+export const calendarBlocks = pgTable("calendar_blocks", {
+  id: text("id").primaryKey(),
+  barberId: text("barber_id").notNull(),
+  title: text("title").notNull(),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type CalendarBlockRow = typeof calendarBlocks.$inferSelect;
 

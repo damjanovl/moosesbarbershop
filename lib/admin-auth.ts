@@ -16,9 +16,9 @@ function sign(value: string) {
   return crypto.createHmac("sha256", getSecret()).update(value).digest("hex");
 }
 
-export async function setAdminSession() {
-  const ts = String(Date.now());
-  const token = `${ts}.${sign(ts)}`;
+export async function setAdminSession(userId: string) {
+  const payload = `${userId}.${Date.now()}`;
+  const token = `${payload}.${sign(payload)}`;
   const store = await cookies();
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
@@ -34,16 +34,25 @@ export async function clearAdminSession() {
   store.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
 }
 
-export async function isAdminAuthedFromCookies() {
+export async function getAdminUserIdFromCookies(): Promise<string | null> {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;
-  if (!token) return false;
-  const [ts, sig] = token.split(".");
-  if (!ts || !sig) return false;
-  if (sign(ts) !== sig) return false;
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length < 3) return null;
+  const sig = parts.pop();
+  const payload = parts.join(".");
+  if (!payload || !sig) return null;
+  if (sign(payload) !== sig) return null;
+  const [userId, ts] = payload.split(".");
+  if (!userId || !ts) return null;
   const ageSeconds = (Date.now() - Number(ts)) / 1000;
-  if (!Number.isFinite(ageSeconds) || ageSeconds < 0) return false;
-  if (ageSeconds > MAX_AGE_SECONDS) return false;
-  return true;
+  if (!Number.isFinite(ageSeconds) || ageSeconds < 0) return null;
+  if (ageSeconds > MAX_AGE_SECONDS) return null;
+  return userId;
+}
+
+export async function isAdminAuthedFromCookies() {
+  return (await getAdminUserIdFromCookies()) !== null;
 }
 

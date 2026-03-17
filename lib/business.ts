@@ -18,5 +18,8 @@ export const WEEKLY_HOURS: WeeklyHours = {
 
 export const SLOT_INTERVAL_MINUTES = 15;
 export const HOLD_MINUTES = 15;
-export const DEPOSIT_CAD = 10;
+
+export function getDepositCad(priceCad: number): number {
+  return Math.round(priceCad * 0.5);
+}
 

@@ -3,8 +3,6 @@ import "server-only";
 import crypto from "node:crypto";
 import { SquareClient, SquareEnvironment } from "square";
 
-import { DEPOSIT_CAD } from "@/lib/business";
-
 export function getSquareClient() {
   const accessToken = process.env.SQUARE_ACCESS_TOKEN;
   if (!accessToken) throw new Error("Missing SQUARE_ACCESS_TOKEN");
@@ -23,6 +21,7 @@ export async function createDepositPaymentLink(opts: {
   buyerEmail: string;
   locationId: string;
   redirectUrl: string;
+  depositCad: number;
 }) {
   const client = getSquareClient();
 
@@ -32,7 +31,7 @@ export async function createDepositPaymentLink(opts: {
     quickPay: {
       name: "Moose Barbershop — Booking Deposit",
       locationId: opts.locationId,
-      priceMoney: { amount: BigInt(DEPOSIT_CAD * 100), currency: "CAD" },
+      priceMoney: { amount: BigInt(opts.depositCad * 100), currency: "CAD" },
     },
     checkoutOptions: {
       redirectUrl: opts.redirectUrl,

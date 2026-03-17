@@ -7,11 +7,12 @@ import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { bookings } from "@/lib/db/schema";
-import { HOLD_MINUTES } from "@/lib/business";
+import { getDepositCad, HOLD_MINUTES } from "@/lib/business";
 import { getService, type ServiceKey } from "@/lib/services";
 import { createDepositPaymentLink } from "@/lib/square";
 
 const BodySchema = z.object({
+  barberId: z.string().min(1),
   serviceKey: z.string(),
   startAtIso: z.string().datetime(),
   customerName: z.string().min(2).max(80),
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  const barberId = parsed.data.barberId;
   const serviceKey = parsed.data.serviceKey as ServiceKey;
   const service = getService(serviceKey);
 
@@ -67,6 +69,7 @@ export async function POST(req: Request) {
     .from(bookings)
     .where(
       and(
+        eq(bookings.barberId, barberId),
         lt(bookings.startAt, endAt),
         gt(bookings.endAt, startAt),
         or(
@@ -98,6 +101,7 @@ export async function POST(req: Request) {
 
   await db.insert(bookings).values({
     id: bookingId,
+    barberId,
     status: "PENDING_PAYMENT",
     serviceKey,
     serviceName: service.name,
@@ -130,6 +134,7 @@ export async function POST(req: Request) {
     buyerEmail: parsed.data.customerEmail,
     locationId,
     redirectUrl,
+    depositCad: getDepositCad(service.priceCAD),
   });
 
   await db

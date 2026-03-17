@@ -4,7 +4,7 @@ Modernized website + account-less booking flow:
 
 - **Structure**: Home / About / Portfolio / Pricing / Contact (pricing matches the current site)
 - **Booking**: Client books a time slot with name + email + phone (no accounts)
-- **Deposit**: Redirects to **Square hosted checkout** for a **$10 deposit**
+- **Deposit**: Redirects to **Square hosted checkout** for a **50% deposit** of the booking price
 - **Confirmations**: Square webhook confirms booking and sends emails to client + admin
 - **Admin**: `/admin` calendar + bookings list (simple password gate)
 

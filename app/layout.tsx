@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Moose Barbershop | Hamilton, Ontario",
   description:
-    "Premium barbershop experience in Hamilton, Ontario. Book your appointment online with a $10 deposit to secure your spot.",
+    "Premium barbershop experience in Hamilton, Ontario. Book your appointment online to secure your spot.",
 };
 
 export default function RootLayout({

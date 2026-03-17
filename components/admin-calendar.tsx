@@ -98,8 +98,11 @@ export function AdminCalendar({
   barberId: string;
   barbers: Barber[];
   isMainAdmin: boolean;
-  onRefresh: () => void;
+  onRefresh?: () => void;
 }) {
+  const router = useRouter();
+  const refresh = onRefresh ?? (() => router.refresh());
+
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
   const [addModal, setAddModal] = useState<{
     start: Date;

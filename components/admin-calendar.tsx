@@ -22,6 +22,7 @@ type BookingDetail = {
   priceCad: number;
   status: string;
   timeRange: string;
+  barberName?: string;
 };
 
 type Barber = { id: string; name: string };
@@ -202,6 +203,12 @@ export function AdminCalendar({
             <h3 className="pr-8 text-lg font-semibold">{selectedBooking.customerName}</h3>
 
             <dl className="mt-4 space-y-3 text-sm">
+              {selectedBooking.barberName && (
+                <div>
+                  <dt className="text-white/50">Barber</dt>
+                  <dd className="font-medium">{selectedBooking.barberName}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-white/50">Service</dt>
                 <dd className="font-medium">{selectedBooking.serviceName}</dd>
@@ -252,6 +259,7 @@ export function AdminCalendar({
             setError(null);
             refresh();
           }}
+          error={error}
           setError={setError}
           submitting={submitting}
           setSubmitting={setSubmitting}
@@ -270,6 +278,7 @@ function AddSlotModal({
   isMainAdmin,
   onClose,
   onSuccess,
+  error,
   setError,
   submitting,
   setSubmitting,
@@ -282,13 +291,16 @@ function AddSlotModal({
   isMainAdmin: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  error: string | null;
   setError: (e: string | null) => void;
   submitting: boolean;
   setSubmitting: (v: boolean) => void;
 }) {
   const [title, setTitle] = useState("");
   const [formMode, setFormMode] = useState<"block" | "booking">(mode);
-  const [targetBarberId, setTargetBarberId] = useState(barberId);
+  const [targetBarberId, setTargetBarberId] = useState(
+    barberId === "all" ? barbers[0]?.id ?? "" : barberId,
+  );
   const [serviceKey, setServiceKey] = useState<string>(SERVICES[0]?.key ?? "");
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -302,6 +314,10 @@ function AddSlotModal({
   async function handleAddBlock() {
     if (!title.trim()) {
       setError("Title is required");
+      return;
+    }
+    if (!targetBarberId) {
+      setError("Please select a barber");
       return;
     }
     setSubmitting(true);
@@ -330,6 +346,10 @@ function AddSlotModal({
   async function handleAddBooking() {
     if (!customerName.trim() || !customerEmail.trim() || !customerPhone.trim()) {
       setError("Name, email, and phone are required");
+      return;
+    }
+    if (!targetBarberId) {
+      setError("Please select a barber");
       return;
     }
     if (!serviceKey) {
@@ -392,6 +412,12 @@ function AddSlotModal({
           </button>
         </div>
 
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
         <div className="text-xs text-white/60">
           {start.toLocaleString("en-CA", { dateStyle: "short", timeStyle: "short" })} –{" "}
           {formMode === "block" ? end.toLocaleString("en-CA", { timeStyle: "short" }) : computedEnd.toLocaleString("en-CA", { timeStyle: "short" })}
@@ -408,7 +434,7 @@ function AddSlotModal({
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
               />
             </div>
-            {isMainAdmin && barbers.length > 1 && (
+            {(barberId === "all" || (isMainAdmin && barbers.length > 1)) && (
               <div className="space-y-1">
                 <label className="text-xs text-white/60">Barber</label>
                 <select
@@ -430,7 +456,7 @@ function AddSlotModal({
           </>
         ) : (
           <>
-            {isMainAdmin && barbers.length > 1 && (
+            {(barberId === "all" || (isMainAdmin && barbers.length > 1)) && (
               <div className="space-y-1">
                 <label className="text-xs text-white/60">Barber</label>
                 <select

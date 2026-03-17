@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Container, Card, Button } from "@/components/ui";
 import { AdminCalendar } from "@/components/admin-calendar";
 import { AddBarberForm } from "@/components/add-barber-form";
+import { fetchAdminCalendarData } from "@/app/admin/actions";
 
 type Barber = { id: string; name: string };
 
@@ -71,16 +72,11 @@ export function AdminDashboard({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/admin/calendar?barber=${encodeURIComponent(viewBarber)}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load");
-        return r.json();
-      })
+    fetchAdminCalendarData(viewBarber)
       .then((json) => {
         if (cancelled) return;
-        setData(json);
+        if (json) setData(json);
+        else setData(initialData);
       })
       .catch(() => {
         if (cancelled) return;

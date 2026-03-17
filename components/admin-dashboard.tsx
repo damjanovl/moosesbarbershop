@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Container, Card, Button } from "@/components/ui";
 import { AdminCalendar } from "@/components/admin-calendar";
 import { AddBarberForm } from "@/components/add-barber-form";
@@ -61,22 +61,14 @@ export function AdminDashboard({
   const [data, setData] = useState<CalendarData>(initialData);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const isInitialMount = useRef(true);
 
-  const refetchCurrentView = () => {
-    if (isInitialMount.current) return;
-    setRefreshKey((k) => k + 1);
-  };
+  const refetchCurrentView = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
     setData((prev) => ({ ...prev, barbers: initialData.barbers }));
   }, [initialData.barbers]);
 
   useEffect(() => {
-    const skipFetch = isInitialMount.current;
-    if (isInitialMount.current) isInitialMount.current = false;
-    if (skipFetch) return;
-
     let cancelled = false;
     setLoading(true);
     fetch(`/api/admin/calendar?barber=${encodeURIComponent(viewBarber)}`, {
@@ -101,7 +93,7 @@ export function AdminDashboard({
     return () => {
       cancelled = true;
     };
-  }, [viewBarber, initialData.viewBarberId, refreshKey]);
+  }, [viewBarber, refreshKey]);
 
   const rows = data.rows ?? [];
 

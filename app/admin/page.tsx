@@ -2,7 +2,11 @@ import { desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import { AdminDashboard } from "@/components/admin-dashboard";
-import { getAdminUserIdFromCookies, isAdminAuthedFromCookies } from "@/lib/admin-auth";
+import {
+  createAdminBearerToken,
+  getAdminUserIdFromCookies,
+  isAdminAuthedFromCookies,
+} from "@/lib/admin-auth";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { adminUsers, bookings, calendarBlocks } from "@/lib/db/schema";
@@ -95,11 +99,14 @@ export default async function AdminPage() {
     viewAll: false,
   };
 
+  const bearerToken = await createAdminBearerToken();
+
   return (
     <AdminDashboard
       initialData={initialData}
       userId={userId}
       isMainAdmin={!!currentUser?.isMainAdmin}
+      bearerToken={bearerToken}
     />
   );
 }

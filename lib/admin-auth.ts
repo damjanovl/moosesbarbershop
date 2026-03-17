@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 
 const COOKIE_NAME = "moose_admin";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const BEARER_TOKEN_MAX_AGE_SECONDS = 60 * 30; // 30 minutes
 
 function getSecret() {
   const secret = process.env.ADMIN_SESSION_SECRET;
@@ -14,6 +15,33 @@ function getSecret() {
 
 function sign(value: string) {
   return crypto.createHmac("sha256", getSecret()).update(value).digest("hex");
+}
+
+export async function createAdminBearerToken(): Promise<string | null> {
+  const userId = await getAdminUserIdFromCookies();
+  if (!userId) return null;
+  const payload = `${userId}.${Date.now()}`;
+  const token = `${payload}.${sign(payload)}`;
+  return token;
+}
+
+export function verifyAdminBearerToken(
+  authHeader: string | null,
+): string | null {
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7);
+  const parts = token.split(".");
+  if (parts.length < 3) return null;
+  const sig = parts.pop();
+  const payload = parts.join(".");
+  if (!payload || !sig) return null;
+  if (sign(payload) !== sig) return null;
+  const [userId, ts] = payload.split(".");
+  if (!userId || !ts) return null;
+  const ageSeconds = (Date.now() - Number(ts)) / 1000;
+  if (!Number.isFinite(ageSeconds) || ageSeconds < 0) return null;
+  if (ageSeconds > BEARER_TOKEN_MAX_AGE_SECONDS) return null;
+  return userId;
 }
 
 export async function setAdminSession(userId: string) {

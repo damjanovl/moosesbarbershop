@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { Container, Card, Button } from "@/components/ui";
 import { AdminCalendar } from "@/components/admin-calendar";
 import { AddBarberForm } from "@/components/add-barber-form";
-import { fetchAdminCalendarData } from "@/app/admin/actions";
-
 type Barber = { id: string; name: string };
 
 type CalendarData = {
@@ -51,10 +49,12 @@ export function AdminDashboard({
   initialData,
   userId,
   isMainAdmin,
+  bearerToken,
 }: {
   initialData: CalendarData;
   userId: string;
   isMainAdmin: boolean;
+  bearerToken: string | null;
 }) {
   const [viewBarber, setViewBarber] = useState(
     initialData.viewBarberId === "all" ? "all" : initialData.viewBarberId,
@@ -75,15 +75,13 @@ export function AdminDashboard({
 
     async function load() {
       try {
-        let json = await fetchAdminCalendarData(viewBarber);
-        if (cancelled) return;
-        if (json) {
-          setData(json);
-          return;
+        const headers: HeadersInit = { "Cache-Control": "no-store" };
+        if (bearerToken) {
+          headers["Authorization"] = `Bearer ${bearerToken}`;
         }
         const res = await fetch(
           `/api/admin/calendar?barber=${encodeURIComponent(viewBarber)}`,
-          { credentials: "include", cache: "no-store" },
+          { credentials: "include", cache: "no-store", headers },
         );
         if (cancelled) return;
         if (res.ok) {
@@ -104,7 +102,7 @@ export function AdminDashboard({
     return () => {
       cancelled = true;
     };
-  }, [viewBarber, refreshKey]);
+  }, [viewBarber, refreshKey, bearerToken]);
 
   const rows = data.rows ?? [];
 

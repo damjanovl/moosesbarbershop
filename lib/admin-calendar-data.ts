@@ -9,9 +9,13 @@ import { getDb } from "@/lib/db";
 import { adminUsers, bookings, calendarBlocks } from "@/lib/db/schema";
 import { formatTimeFromUtc } from "@/lib/time";
 
-export async function getAdminCalendarData(barberParam: string | null) {
+export async function getAdminCalendarData(
+  barberParam: string | null,
+  userIdFromToken?: string | null,
+) {
   unstable_noStore();
-  const userId = await getAdminUserIdFromCookies();
+  const userId =
+    userIdFromToken ?? (await getAdminUserIdFromCookies());
   if (!userId) {
     return null;
   }

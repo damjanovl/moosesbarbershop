@@ -59,7 +59,7 @@ export async function InstagramLatestSection() {
     { src: "/portfolio/1.jpeg", alt: "Moose Barbershop haircut" },
     { src: "/portfolio/2.jpeg", alt: "Moose Barbershop haircut" },
     { src: "/portfolio/3.jpeg", alt: "Moose Barbershop haircut" },
-    { src: "/portfolio/4.jpeg", alt: "Moose Barbershop haircut" },
+    // { src: "/portfolio/4.jpeg", alt: "Moose Barbershop haircut" },
   ];
 
   return (

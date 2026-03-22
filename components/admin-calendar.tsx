@@ -44,6 +44,35 @@ const statusColors: Record<string, { bg: string; border: string }> = {
 
 const BLOCK_COLOR = { bg: "rgba(100, 100, 100, 0.6)", border: "transparent" };
 
+/** Same slot step as `<Calendar step={…} />` — used for business-hour overlap checks. */
+const CALENDAR_STEP_MINUTES = 30;
+
+/**
+ * Business hours by `getDay()` index: 0 Sun … 6 Sat. Times are minutes from midnight.
+ * Mon 11–5, Tue–Wed 11–7, Thu–Fri 10–8, Sat 9–6, Sun 11–5.
+ */
+const BUSINESS_MINUTES_BY_WEEKDAY: Record<number, { open: number; close: number }> = {
+  0: { open: 11 * 60, close: 17 * 60 },
+  1: { open: 11 * 60, close: 17 * 60 },
+  2: { open: 11 * 60, close: 19 * 60 },
+  3: { open: 11 * 60, close: 19 * 60 },
+  4: { open: 10 * 60, close: 20 * 60 },
+  5: { open: 10 * 60, close: 20 * 60 },
+  6: { open: 9 * 60, close: 18 * 60 },
+};
+
+/** Earliest open / latest close across the week — bounds the time grid (week + day views). */
+const CALENDAR_MIN_TIME = new Date(1970, 0, 1, 9, 0, 0);
+const CALENDAR_MAX_TIME = new Date(1970, 0, 1, 20, 0, 0);
+
+function slotOverlapsBusinessHours(slotStart: Date, stepMinutes: number): boolean {
+  const day = getDay(slotStart);
+  const { open, close } = BUSINESS_MINUTES_BY_WEEKDAY[day];
+  const startMin = slotStart.getHours() * 60 + slotStart.getMinutes();
+  const endMin = startMin + stepMinutes;
+  return endMin > open && startMin < close;
+}
+
 function Modal({
   children,
   onClose,
@@ -161,6 +190,14 @@ export function AdminCalendar({
             defaultView="week"
             defaultDate={new Date()}
             views={["week", "day", "agenda", "month"]}
+            min={CALENDAR_MIN_TIME}
+            max={CALENDAR_MAX_TIME}
+            step={CALENDAR_STEP_MINUTES}
+            slotPropGetter={(date) =>
+              slotOverlapsBusinessHours(date, CALENDAR_STEP_MINUTES)
+                ? {}
+                : { style: { backgroundColor: "rgba(0, 0, 0, 0.22)" } }
+            }
             popup
             culture="en-CA"
             onSelectEvent={handleSelectEvent}

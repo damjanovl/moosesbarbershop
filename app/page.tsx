@@ -1,12 +1,15 @@
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { PortfolioGallery } from "@/components/portfolio-gallery";
 import { Button, Card, Container } from "@/components/ui";
 import { InstagramLatestSection } from "@/components/instagram-latest";
+import { listGalleryImages } from "@/lib/gallery-images";
 import { SERVICES } from "@/lib/services";
 import { Check } from "lucide-react";
 import Image from "next/image";
 
-export default function Home() {
+export default async function Home() {
+  const galleryImages = await listGalleryImages();
   return (
     <div id="home" className="min-h-screen">
       <SiteHeader />
@@ -140,7 +143,31 @@ export default function Home() {
           </Container>
         </section>
 
-        <InstagramLatestSection />
+        {/* <InstagramLatestSection /> */}
+        
+        <section id="portfolio" className="py-20">
+          <Container>
+            <div className="flex items-end justify-between gap-6">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold tracking-widest text-white/60">
+                  OUR WORK
+                </div>
+                <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+                  Masterpieces we&apos;ve created.
+                </h2>
+                <p className="max-w-2xl text-sm text-white/70">
+                  Every client is a canvas. Here&apos;s a preview of the vibe—drop in
+                  real photos anytime.
+                </p>
+              </div>
+              <Button href="/book" variant="secondary" className="hidden md:inline-flex">
+                Book Now
+              </Button>
+            </div>
+
+            <PortfolioGallery images={galleryImages} />
+          </Container>
+        </section>
 
         <section id="pricing" className="py-20">
           <Container>
@@ -204,51 +231,7 @@ export default function Home() {
           </Container>
         </section>
 
-        <section id="portfolio" className="py-20">
-          <Container>
-            <div className="flex items-end justify-between gap-6">
-              <div className="space-y-2">
-                <div className="text-xs font-semibold tracking-widest text-white/60">
-                  OUR WORK
-                </div>
-                <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  Masterpieces we've created.
-                </h2>
-                <p className="max-w-2xl text-sm text-white/70">
-                  Every client is a canvas. Here's a preview of the vibe—drop in
-                  real photos anytime.
-                </p>
-              </div>
-              <Button href="/book" variant="secondary" className="hidden md:inline-flex">
-                Book Now
-              </Button>
-            </div>
-
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-              {[
-                { src: "/portfolio/1.jpeg", label: "Premium Haircut" },
-                { src: "/portfolio/2.jpeg", label: "Stylish Cut" },
-                { src: "/portfolio/3.jpeg", label: "Beard Trim" },
-                { src: "/portfolio/4.jpeg", label: "Complete Package" },
-              ].map((p) => (
-                <Card key={p.src} className="p-0 overflow-hidden">
-                  <div className="relative aspect-square">
-                    <Image
-                      src={p.src}
-                      alt={p.label}
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4 text-sm font-semibold">
-                      {p.label}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </Container>
-        </section>
+        <InstagramLatestSection />
 
         <section id="contact" className="py-20">
           <Container>

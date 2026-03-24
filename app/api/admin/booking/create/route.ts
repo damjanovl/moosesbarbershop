@@ -21,6 +21,12 @@ const BodySchema = {
     typeof v === "string" && v.length >= 7 && v.length <= 30,
   notes: (v: unknown) =>
     v === undefined || (typeof v === "string" && v.length <= 500),
+  durationMinutes: (v: unknown) =>
+    v === undefined ||
+    (typeof v === "number" &&
+      Number.isInteger(v) &&
+      v >= 15 &&
+      v <= 480),
 };
 
 function overlaps(
@@ -70,6 +76,9 @@ export async function POST(req: Request) {
     ? json.customerPhone
     : null;
   const notes = BodySchema.notes(json.notes) ? json.notes : undefined;
+  const durationOverride = BodySchema.durationMinutes(json.durationMinutes)
+    ? (json.durationMinutes as number)
+    : null;
 
   if (
     !barberId ||
@@ -101,7 +110,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid start time" }, { status: 400 });
   }
 
-  const endAt = addMinutes(startAt, service.durationMinutes);
+  const durationMinutes = durationOverride ?? service.durationMinutes;
+  const endAt = addMinutes(startAt, durationMinutes);
   const candidate = { startAt, endAt };
 
   const existing = await db
@@ -136,7 +146,7 @@ export async function POST(req: Request) {
     serviceKey,
     serviceName: service.name,
     priceCad: service.priceCAD,
-    durationMinutes: service.durationMinutes,
+    durationMinutes,
     startAt,
     endAt,
     customerName,

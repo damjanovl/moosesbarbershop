@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, dateFnsLocalizer, type Event, type SlotInfo } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { addMinutes, format, parse, startOfWeek, getDay } from "date-fns";
 import { enCA } from "date-fns/locale/en-CA";
 import { X } from "lucide-react";
 
@@ -46,6 +46,19 @@ const BLOCK_COLOR = { bg: "rgba(100, 100, 100, 0.6)", border: "transparent" };
 
 /** Same slot step as `<Calendar step={…} />` — used for business-hour overlap checks. */
 const CALENDAR_STEP_MINUTES = 30;
+
+const MIN_BOOKING_DURATION = 15;
+const MAX_BOOKING_DURATION = 480;
+/** Block / manual length picker step (calendar slots remain {CALENDAR_STEP_MINUTES} min). */
+const DURATION_PICKER_STEP = 15;
+
+function normalizeBlockDurationMinutes(minutes: number): number {
+  const clamped = Math.min(
+    MAX_BOOKING_DURATION,
+    Math.max(MIN_BOOKING_DURATION, minutes),
+  );
+  return Math.round(clamped / DURATION_PICKER_STEP) * DURATION_PICKER_STEP;
+}
 
 /**
  * Business hours by `getDay()` index: 0 Sun … 6 Sat. Times are minutes from midnight.
@@ -281,6 +294,7 @@ export function AdminCalendar({
 
       {addModal && (
         <AddSlotModal
+          key={`${addModal.start.toISOString()}_${addModal.end.toISOString()}`}
           start={addModal.start}
           end={addModal.end}
           mode={addModal.mode}
@@ -343,10 +357,25 @@ function AddSlotModal({
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [blockDurationMinutes, setBlockDurationMinutes] = useState(() =>
+    normalizeBlockDurationMinutes(
+      Math.round((end.getTime() - start.getTime()) / 60000),
+    ),
+  );
+  const [bookingDurationMinutes, setBookingDurationMinutes] = useState(
+    () => SERVICES.find((s) => s.key === serviceKey)?.durationMinutes ?? 30,
+  );
 
   const service = SERVICES.find((s) => s.key === serviceKey);
-  const durationMs = (service?.durationMinutes ?? 30) * 60 * 1000;
-  const computedEnd = new Date(start.getTime() + durationMs);
+  useEffect(() => {
+    setBookingDurationMinutes(service?.durationMinutes ?? 30);
+  }, [serviceKey, service?.durationMinutes]);
+
+  const blockEnd = addMinutes(
+    start,
+    normalizeBlockDurationMinutes(Math.round(blockDurationMinutes)),
+  );
+  const bookingEnd = addMinutes(start, Math.round(bookingDurationMinutes));
 
   async function handleAddBlock() {
     if (!title.trim()) {
@@ -357,6 +386,18 @@ function AddSlotModal({
       setError("Please select a barber");
       return;
     }
+    const blockDuration = normalizeBlockDurationMinutes(
+      Math.round(blockDurationMinutes),
+    );
+    if (
+      !Number.isFinite(blockDuration) ||
+      blockDuration < MIN_BOOKING_DURATION ||
+      blockDuration > MAX_BOOKING_DURATION
+    ) {
+      setError(`Duration must be ${MIN_BOOKING_DURATION}–${MAX_BOOKING_DURATION} minutes`);
+      return;
+    }
+    const blockEndAt = addMinutes(start, blockDuration);
     setSubmitting(true);
     setError(null);
     try {
@@ -367,7 +408,7 @@ function AddSlotModal({
           barberId: targetBarberId,
           title: title.trim(),
           startAtIso: start.toISOString(),
-          endAtIso: end.toISOString(),
+          endAtIso: blockEndAt.toISOString(),
         }),
       });
       const data = await res.json().catch(() => null);
@@ -393,6 +434,15 @@ function AddSlotModal({
       setError("Please select a service");
       return;
     }
+    const durationRounded = Math.round(bookingDurationMinutes);
+    if (
+      !Number.isFinite(bookingDurationMinutes) ||
+      durationRounded < MIN_BOOKING_DURATION ||
+      durationRounded > MAX_BOOKING_DURATION
+    ) {
+      setError(`Duration must be ${MIN_BOOKING_DURATION}–${MAX_BOOKING_DURATION} minutes`);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -403,6 +453,7 @@ function AddSlotModal({
           barberId: targetBarberId,
           serviceKey,
           startAtIso: start.toISOString(),
+          durationMinutes: durationRounded,
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim(),
           customerPhone: customerPhone.trim(),
@@ -456,12 +507,47 @@ function AddSlotModal({
         )}
 
         <div className="text-xs text-white/60">
+          <span className="text-white/45">Time range: </span>
           {start.toLocaleString("en-CA", { dateStyle: "short", timeStyle: "short" })} –{" "}
-          {formMode === "block" ? end.toLocaleString("en-CA", { timeStyle: "short" }) : computedEnd.toLocaleString("en-CA", { timeStyle: "short" })}
+          {formMode === "block"
+            ? blockEnd.toLocaleString("en-CA", { timeStyle: "short" })
+            : bookingEnd.toLocaleString("en-CA", { timeStyle: "short" })}
         </div>
 
         {formMode === "block" ? (
           <>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60" htmlFor="block-duration">
+                Length (minutes)
+              </label>
+              <input
+                id="block-duration"
+                type="number"
+                min={MIN_BOOKING_DURATION}
+                max={MAX_BOOKING_DURATION}
+                step={DURATION_PICKER_STEP}
+                value={blockDurationMinutes}
+                onChange={(e) => {
+                  const v = e.target.valueAsNumber;
+                  if (e.target.value.trim() === "" || Number.isNaN(v)) return;
+                  setBlockDurationMinutes(v);
+                }}
+                onBlur={() =>
+                  setBlockDurationMinutes((m) =>
+                    normalizeBlockDurationMinutes(Math.round(m)),
+                  )
+                }
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+              <p className="text-[11px] text-white/45">
+                Snaps to {DURATION_PICKER_STEP}-minute steps on blur. Drag-select
+                suggested{" "}
+                {normalizeBlockDurationMinutes(
+                  Math.round((end.getTime() - start.getTime()) / 60000),
+                )}
+                min.
+              </p>
+            </div>
             <div className="space-y-1">
               <label className="text-xs text-white/60">Title</label>
               <input
@@ -522,6 +608,28 @@ function AddSlotModal({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60" htmlFor="booking-duration">
+                Appointment length (minutes)
+              </label>
+              <input
+                id="booking-duration"
+                type="number"
+                min={MIN_BOOKING_DURATION}
+                max={MAX_BOOKING_DURATION}
+                step={5}
+                value={bookingDurationMinutes}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (Number.isNaN(v)) return;
+                  setBookingDurationMinutes(v);
+                }}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+              <p className="text-[11px] text-white/45">
+                Defaults to the service length; change if the cut will run longer or shorter.
+              </p>
             </div>
             <div className="space-y-1">
               <label className="text-xs text-white/60">Customer name</label>

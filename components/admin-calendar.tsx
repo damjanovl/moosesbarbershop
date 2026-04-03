@@ -281,11 +281,11 @@ export function AdminCalendar({
               </div>
               <div>
                 <dt className="text-white/50">Email</dt>
-                <dd className="font-medium">{selectedBooking.customerEmail}</dd>
+                <dd className="font-medium">{selectedBooking.customerEmail || "—"}</dd>
               </div>
               <div>
                 <dt className="text-white/50">Phone</dt>
-                <dd className="font-medium">{selectedBooking.customerPhone}</dd>
+                <dd className="font-medium">{selectedBooking.customerPhone || "—"}</dd>
               </div>
             </dl>
           </div>
@@ -422,16 +422,13 @@ function AddSlotModal({
   }
 
   async function handleAddBooking() {
-    if (!customerName.trim() || !customerEmail.trim() || !customerPhone.trim()) {
-      setError("Name, email, and phone are required");
-      return;
-    }
-    if (!targetBarberId) {
-      setError("Please select a barber");
-      return;
-    }
-    if (!serviceKey) {
-      setError("Please select a service");
+    const trimmedName = customerName.trim();
+    const trimmedEmail = customerEmail.trim();
+    const trimmedPhone = customerPhone.trim();
+    const trimmedNotes = notes.trim();
+
+    if (!trimmedName) {
+      setError("Customer name is required");
       return;
     }
     const durationRounded = Math.round(bookingDurationMinutes);
@@ -450,14 +447,14 @@ function AddSlotModal({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          barberId: targetBarberId,
-          serviceKey,
           startAtIso: start.toISOString(),
           durationMinutes: durationRounded,
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          customerPhone: customerPhone.trim(),
-          notes: notes.trim() || undefined,
+          customerName: trimmedName,
+          barberId: targetBarberId || undefined,
+          serviceKey: serviceKey || undefined,
+          customerEmail: trimmedEmail || undefined,
+          customerPhone: trimmedPhone || undefined,
+          notes: trimmedNotes || undefined,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -596,7 +593,7 @@ function AddSlotModal({
               </div>
             )}
             <div className="space-y-1">
-              <label className="text-xs text-white/60">Service</label>
+              <label className="text-xs text-white/60">Service (optional)</label>
               <select
                 value={serviceKey}
                 onChange={(e) => setServiceKey(e.target.value)}
@@ -636,23 +633,26 @@ function AddSlotModal({
               <input
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Required"
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-white/60">Email</label>
+              <label className="text-xs text-white/60">Email (optional)</label>
               <input
                 type="email"
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="Optional"
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-white/60">Phone</label>
+              <label className="text-xs text-white/60">Phone (optional)</label>
               <input
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="Optional"
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
               />
             </div>

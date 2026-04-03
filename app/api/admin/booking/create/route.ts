@@ -16,13 +16,9 @@ const BodySchema = {
   customerName: (v: unknown) =>
     typeof v === "string" && v.trim().length >= 1 && v.trim().length <= 80,
   customerEmail: (v: unknown) =>
-    v === undefined ||
-    (typeof v === "string" &&
-      (v.trim().length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()))),
+    v === undefined || (typeof v === "string" && v.trim().length <= 320),
   customerPhone: (v: unknown) =>
-    v === undefined ||
-    (typeof v === "string" &&
-      (v.trim().length === 0 || (v.trim().length >= 7 && v.trim().length <= 30))),
+    v === undefined || (typeof v === "string" && v.trim().length <= 50),
   notes: (v: unknown) =>
     v === undefined || (typeof v === "string" && v.trim().length <= 500),
   durationMinutes: (v: unknown) =>

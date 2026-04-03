@@ -1,33 +1,36 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { addMinutes } from "date-fns";
-import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, lt } from "drizzle-orm";
 
 import { getAdminUserIdFromCookies } from "@/lib/admin-auth";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { adminUsers, bookings } from "@/lib/db/schema";
-import { getService, type ServiceKey } from "@/lib/services";
+import { getService, SERVICES, type ServiceKey } from "@/lib/services";
 
 const BodySchema = {
-  barberId: (v: unknown) => typeof v === "string" && v.length > 0,
-  serviceKey: (v: unknown) => typeof v === "string" && v.length > 0,
+  barberId: (v: unknown) => v === undefined || (typeof v === "string" && v.trim().length > 0),
+  serviceKey: (v: unknown) => v === undefined || (typeof v === "string" && v.trim().length > 0),
   startAtIso: (v: unknown) => typeof v === "string" && v.length > 0,
   customerName: (v: unknown) =>
-    typeof v === "string" && v.length >= 2 && v.length <= 80,
+    typeof v === "string" && v.trim().length >= 1 && v.trim().length <= 80,
   customerEmail: (v: unknown) =>
-    typeof v === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+    v === undefined || (typeof v === "string" && v.trim().length <= 320),
   customerPhone: (v: unknown) =>
-    typeof v === "string" && v.length >= 7 && v.length <= 30,
+    v === undefined || (typeof v === "string" && v.trim().length <= 50),
   notes: (v: unknown) =>
-    v === undefined || (typeof v === "string" && v.length <= 500),
+    v === undefined || (typeof v === "string" && v.trim().length <= 500),
   durationMinutes: (v: unknown) =>
-    v === undefined ||
-    (typeof v === "number" &&
+    typeof v === "number" &&
       Number.isInteger(v) &&
       v >= 15 &&
-      v <= 480),
+      v <= 480,
 };
+
+function isServiceKey(value: string): value is ServiceKey {
+  return SERVICES.some((s) => s.key === value);
+}
 
 function overlaps(
   a: { startAt: Date; endAt: Date },
@@ -59,58 +62,67 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const barberId = BodySchema.barberId(json.barberId) ? json.barberId : null;
-  const serviceKey = BodySchema.serviceKey(json.serviceKey)
-    ? (json.serviceKey as ServiceKey)
-    : null;
+  const barberId =
+    BodySchema.barberId(json.barberId) && typeof json.barberId === "string"
+      ? json.barberId.trim()
+      : null;
+  const serviceKey =
+    BodySchema.serviceKey(json.serviceKey) && typeof json.serviceKey === "string"
+      ? json.serviceKey.trim()
+      : null;
   const startAtIso = BodySchema.startAtIso(json.startAtIso)
     ? json.startAtIso
     : null;
   const customerName = BodySchema.customerName(json.customerName)
-    ? json.customerName
+    ? json.customerName.trim()
     : null;
-  const customerEmail = BodySchema.customerEmail(json.customerEmail)
-    ? json.customerEmail
-    : null;
-  const customerPhone = BodySchema.customerPhone(json.customerPhone)
-    ? json.customerPhone
-    : null;
-  const notes = BodySchema.notes(json.notes) ? json.notes : undefined;
-  const durationOverride = BodySchema.durationMinutes(json.durationMinutes)
+  const customerEmail =
+    BodySchema.customerEmail(json.customerEmail) && typeof json.customerEmail === "string"
+      ? json.customerEmail.trim()
+      : undefined;
+  const customerPhone =
+    BodySchema.customerPhone(json.customerPhone) && typeof json.customerPhone === "string"
+      ? json.customerPhone.trim()
+      : undefined;
+  const notes =
+    BodySchema.notes(json.notes) && typeof json.notes === "string"
+      ? json.notes.trim()
+      : undefined;
+  const durationMinutes = BodySchema.durationMinutes(json.durationMinutes)
     ? (json.durationMinutes as number)
     : null;
 
-  if (
-    !barberId ||
-    !serviceKey ||
-    !startAtIso ||
-    !customerName ||
-    !customerEmail ||
-    !customerPhone
-  ) {
+  if (!startAtIso || !customerName || !durationMinutes) {
     return NextResponse.json(
       { error: "Missing or invalid required fields" },
       { status: 400 },
     );
   }
 
+  const resolvedBarberId = barberId || admin.id;
+  const defaultServiceKey = SERVICES[0]?.key;
+  if (!defaultServiceKey) {
+    return NextResponse.json({ error: "Services are not configured" }, { status: 500 });
+  }
+  const resolvedServiceKey =
+    serviceKey && isServiceKey(serviceKey) ? serviceKey : defaultServiceKey;
+
   const [barber] = await db
     .select()
     .from(adminUsers)
-    .where(eq(adminUsers.id, barberId))
+    .where(eq(adminUsers.id, resolvedBarberId))
     .limit(1);
 
   if (!barber) {
     return NextResponse.json({ error: "Barber not found" }, { status: 404 });
   }
 
-  const service = getService(serviceKey);
+  const service = getService(resolvedServiceKey);
   const startAt = new Date(startAtIso);
   if (Number.isNaN(startAt.getTime())) {
     return NextResponse.json({ error: "Invalid start time" }, { status: 400 });
   }
 
-  const durationMinutes = durationOverride ?? service.durationMinutes;
   const endAt = addMinutes(startAt, durationMinutes);
   const candidate = { startAt, endAt };
 
@@ -123,7 +135,7 @@ export async function POST(req: Request) {
     .from(bookings)
     .where(
       and(
-        eq(bookings.barberId, barberId),
+        eq(bookings.barberId, resolvedBarberId),
         lt(bookings.startAt, endAt),
         gt(bookings.endAt, startAt),
         inArray(bookings.status, ["CONFIRMED", "PENDING_PAYMENT"] as const),
@@ -141,24 +153,24 @@ export async function POST(req: Request) {
   const bookingId = crypto.randomUUID();
   await db.insert(bookings).values({
     id: bookingId,
-    barberId,
+    barberId: resolvedBarberId,
     status: "CONFIRMED",
-    serviceKey,
+    serviceKey: resolvedServiceKey,
     serviceName: service.name,
     priceCad: service.priceCAD,
     durationMinutes,
     startAt,
     endAt,
     customerName,
-    customerEmail,
-    customerPhone,
-    notes: notes?.trim() || null,
+    customerEmail: customerEmail || "",
+    customerPhone: customerPhone || "",
+    notes: notes || null,
     expiresAt: null,
   });
 
   return NextResponse.json({
     id: bookingId,
-    barberId,
+    barberId: resolvedBarberId,
     startAt: startAt.toISOString(),
     endAt: endAt.toISOString(),
   });

@@ -82,23 +82,31 @@ export async function getAdminCalendarData(
 
   const bookingsData = rows.map((b) => ({
     id: b.id,
+    barberId: b.barberId,
     customerName: b.customerName,
     customerEmail: b.customerEmail,
     customerPhone: b.customerPhone,
+    serviceKey: b.serviceKey,
     serviceName: b.serviceName,
     priceCad: b.priceCad,
     status: b.status,
+    startAtIso: b.startAt.toISOString(),
+    durationMinutes: b.durationMinutes,
     timeRange: `${formatTimeFromUtc(b.startAt)} – ${formatTimeFromUtc(b.endAt)}`,
     barberName: barberNameById[b.barberId] ?? b.barberId,
+    notes: b.notes,
   }));
 
   const blocksData = blocks.map((b) => ({
     id: b.id,
-    title: viewAll
+    title: b.title,
+    displayTitle: viewAll
       ? `${b.title} (${barberNameById[b.barberId] ?? b.barberId})`
       : b.title,
-    start: b.startAt.toISOString(),
-    end: b.endAt.toISOString(),
+    startAtIso: b.startAt.toISOString(),
+    endAtIso: b.endAt.toISOString(),
+    barberId: b.barberId,
+    barberName: barberNameById[b.barberId] ?? b.barberId,
   }));
 
   const viewBarber = viewAll ? null : barbers.find((b) => b.id === viewBarberId);

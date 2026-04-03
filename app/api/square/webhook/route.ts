@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
+import { confirmBookingFromSquareWebhook } from "@/lib/booking-payment-sync";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { bookings } from "@/lib/db/schema";
-import { sendBookingConfirmedEmails } from "@/lib/email";
 import { verifySquareWebhookSignature } from "@/lib/square";
 
 function extractBookingIdFromNote(note: unknown) {
@@ -64,26 +64,11 @@ export async function POST(req: Request) {
   const bookingId = booking?.id ?? bookingIdFromNote;
   if (!bookingId) return NextResponse.json({ ok: true });
 
-  const updated = await db
-    .update(bookings)
-    .set({
-      status: "CONFIRMED",
-      squarePaymentId: paymentId ?? null,
-      squareOrderId: orderId ?? null,
-      expiresAt: null,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(bookings.id, bookingId),
-        inArray(bookings.status, ["PENDING_PAYMENT"] as const),
-      ),
-    )
-    .returning();
-
-  if (updated.length > 0) {
-    await sendBookingConfirmedEmails({ booking: updated[0] });
-  }
+  await confirmBookingFromSquareWebhook({
+    bookingId,
+    paymentId: paymentId ?? null,
+    orderId: orderId ?? null,
+  });
 
   return NextResponse.json({ ok: true });
 }

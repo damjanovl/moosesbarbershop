@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, dateFnsLocalizer, type Event, type SlotInfo } from "react-big-calendar";
 import { addMinutes, format, parse, startOfWeek, getDay } from "date-fns";
@@ -15,14 +15,29 @@ type BookingEvent = Event & { resource?: { id: string; status?: string; type?: "
 
 type BookingDetail = {
   id: string;
+  barberId: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  serviceKey: string;
   serviceName: string;
   priceCad: number;
   status: string;
+  startAtIso: string;
+  durationMinutes: number;
   timeRange: string;
   barberName?: string;
+  notes: string | null;
+};
+
+type BlockDetail = {
+  id: string;
+  title: string;
+  displayTitle: string;
+  startAtIso: string;
+  endAtIso: string;
+  barberId: string;
+  barberName: string;
 };
 
 type Barber = { id: string; name: string };
@@ -86,6 +101,11 @@ function slotOverlapsBusinessHours(slotStart: Date, stepMinutes: number): boolea
   return endMin > open && startMin < close;
 }
 
+function toLocalDateTimeValue(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function Modal({
   children,
   onClose,
@@ -135,7 +155,7 @@ export function AdminCalendar({
     end: string;
     status?: string;
   }>;
-  blocks: Array<{ id: string; title: string; start: string; end: string }>;
+  blocks: BlockDetail[];
   bookings: BookingDetail[];
   statusLabel: Record<string, string>;
   barberId: string;
@@ -144,9 +164,21 @@ export function AdminCalendar({
   onRefresh?: () => void;
 }) {
   const router = useRouter();
-  const refresh = onRefresh ?? (() => router.refresh());
+  const refresh = useMemo(
+    () => onRefresh ?? (() => router.refresh()),
+    [onRefresh, router],
+  );
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      refresh();
+    }, 10_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [refresh]);
 
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<BlockDetail | null>(null);
   const [addModal, setAddModal] = useState<{
     start: Date;
     end: Date;
@@ -166,9 +198,9 @@ export function AdminCalendar({
     .filter((e) => !Number.isNaN(e.start.getTime()) && !Number.isNaN(e.end.getTime()));
 
   const blockEvents: BookingEvent[] = blocks.map((b) => ({
-    title: b.title,
-    start: new Date(b.start),
-    end: new Date(b.end),
+    title: b.displayTitle,
+    start: new Date(b.startAtIso),
+    end: new Date(b.endAtIso),
     allDay: false,
     resource: { id: b.id, type: "block" as const },
   }));
@@ -177,12 +209,24 @@ export function AdminCalendar({
 
   const handleSelectEvent = (event: BookingEvent) => {
     const res = event.resource as { id?: string; type?: string };
-    if (res?.type === "block") return;
+    if (res?.type === "block") {
+      const block = res?.id ? blocks.find((b) => b.id === res.id) : null;
+      if (block) {
+        setSelectedBooking(null);
+        setSelectedBlock(block);
+      }
+      return;
+    }
     const booking = res?.id ? bookings.find((b) => b.id === res.id) : null;
-    if (booking) setSelectedBooking(booking);
+    if (booking) {
+      setSelectedBlock(null);
+      setSelectedBooking(booking);
+    }
   };
 
   const handleSelectSlot = (slotInfo: SlotInfo) => {
+    setSelectedBooking(null);
+    setSelectedBlock(null);
     setAddModal({
       start: slotInfo.start,
       end: slotInfo.end,
@@ -234,62 +278,34 @@ export function AdminCalendar({
       </div>
 
       {selectedBooking && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setSelectedBooking(null)}
-        >
-          <div
-            className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0f0f12] p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedBooking(null)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        <BookingModal
+          key={selectedBooking.id}
+          booking={selectedBooking}
+          barberId={barberId}
+          barbers={barbers}
+          isMainAdmin={isMainAdmin}
+          statusLabel={statusLabel}
+          onClose={() => setSelectedBooking(null)}
+          onSuccess={() => {
+            setSelectedBooking(null);
+            refresh();
+          }}
+        />
+      )}
 
-            <h3 className="pr-8 text-lg font-semibold">{selectedBooking.customerName}</h3>
-
-            <dl className="mt-4 space-y-3 text-sm">
-              {selectedBooking.barberName && (
-                <div>
-                  <dt className="text-white/50">Barber</dt>
-                  <dd className="font-medium">{selectedBooking.barberName}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-white/50">Service</dt>
-                <dd className="font-medium">{selectedBooking.serviceName}</dd>
-              </div>
-              <div>
-                <dt className="text-white/50">Time</dt>
-                <dd className="font-medium">{selectedBooking.timeRange}</dd>
-              </div>
-              <div>
-                <dt className="text-white/50">Status</dt>
-                <dd>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold">
-                    {statusLabel[selectedBooking.status] ?? selectedBooking.status}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-white/50">Payment</dt>
-                <dd className="font-medium">${selectedBooking.priceCad} CAD</dd>
-              </div>
-              <div>
-                <dt className="text-white/50">Email</dt>
-                <dd className="font-medium">{selectedBooking.customerEmail}</dd>
-              </div>
-              <div>
-                <dt className="text-white/50">Phone</dt>
-                <dd className="font-medium">{selectedBooking.customerPhone}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
+      {selectedBlock && (
+        <BlockModal
+          key={selectedBlock.id}
+          block={selectedBlock}
+          barberId={barberId}
+          barbers={barbers}
+          isMainAdmin={isMainAdmin}
+          onClose={() => setSelectedBlock(null)}
+          onSuccess={() => {
+            setSelectedBlock(null);
+            refresh();
+          }}
+        />
       )}
 
       {addModal && (
@@ -422,8 +438,8 @@ function AddSlotModal({
   }
 
   async function handleAddBooking() {
-    if (!customerName.trim() || !customerEmail.trim() || !customerPhone.trim()) {
-      setError("Name, email, and phone are required");
+    if (!customerName.trim()) {
+      setError("Customer name is required");
       return;
     }
     if (!targetBarberId) {
@@ -455,8 +471,8 @@ function AddSlotModal({
           startAtIso: start.toISOString(),
           durationMinutes: durationRounded,
           customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          customerPhone: customerPhone.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: customerPhone.trim() || undefined,
           notes: notes.trim() || undefined,
         }),
       });
@@ -636,11 +652,12 @@ function AddSlotModal({
               <input
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Required"
                 className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-white/60">Email</label>
+              <label className="text-xs text-white/60">Email (optional)</label>
               <input
                 type="email"
                 value={customerEmail}
@@ -649,7 +666,7 @@ function AddSlotModal({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-white/60">Phone</label>
+              <label className="text-xs text-white/60">Phone (optional)</label>
               <input
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
@@ -667,6 +684,606 @@ function AddSlotModal({
             <Button onClick={handleAddBooking} disabled={submitting}>
               {submitting ? "Adding…" : "Add booking"}
             </Button>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function BlockModal({
+  block,
+  barberId,
+  barbers,
+  isMainAdmin,
+  onClose,
+  onSuccess,
+}: {
+  block: BlockDetail;
+  barberId: string;
+  barbers: Barber[];
+  isMainAdmin: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const initialStartAt = new Date(block.startAtIso);
+  const initialEndAt = new Date(block.endAtIso);
+  const [editing, setEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [title, setTitle] = useState(block.title);
+  const [targetBarberId, setTargetBarberId] = useState(block.barberId);
+  const [startAtValue, setStartAtValue] = useState(() =>
+    toLocalDateTimeValue(initialStartAt),
+  );
+  const [durationMinutes, setDurationMinutes] = useState(() =>
+    normalizeBlockDurationMinutes(
+      Math.round((initialEndAt.getTime() - initialStartAt.getTime()) / 60000),
+    ),
+  );
+
+  const startAt =
+    startAtValue.trim().length > 0 ? new Date(startAtValue) : null;
+  const hasValidStartAt = !!startAt && !Number.isNaN(startAt.getTime());
+  const normalizedDuration = normalizeBlockDurationMinutes(
+    Math.round(durationMinutes),
+  );
+  const endAt = hasValidStartAt ? addMinutes(startAt, normalizedDuration) : null;
+  const canChooseBarber =
+    barberId === "all" || (isMainAdmin && barbers.length > 1);
+
+  async function handleSaveBlock() {
+    if (!title.trim()) {
+      setError("Title is required");
+      return;
+    }
+    if (!targetBarberId) {
+      setError("Please select a barber");
+      return;
+    }
+    if (!hasValidStartAt || !startAt || !endAt) {
+      setError("Please choose a valid date and time");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/blocks/${block.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          barberId: targetBarberId,
+          title: title.trim(),
+          startAtIso: startAt.toISOString(),
+          endAtIso: endAt.toISOString(),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Failed to update block");
+      onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update block");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteBlock() {
+    const confirmed = window.confirm(`Delete the block "${block.title}"?`);
+    if (!confirmed) return;
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/blocks/${block.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Failed to delete block");
+      onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete block");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} title={editing ? "Edit block" : block.title}>
+      <div className="mt-4 space-y-4">
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {editing ? (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60">Title</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60" htmlFor="block-start">
+                Date and time
+              </label>
+              <input
+                id="block-start"
+                type="datetime-local"
+                value={startAtValue}
+                onChange={(e) => setStartAtValue(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60" htmlFor="edit-block-duration">
+                Length (minutes)
+              </label>
+              <input
+                id="edit-block-duration"
+                type="number"
+                min={MIN_BOOKING_DURATION}
+                max={MAX_BOOKING_DURATION}
+                step={DURATION_PICKER_STEP}
+                value={durationMinutes}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (Number.isNaN(value)) return;
+                  setDurationMinutes(value);
+                }}
+                onBlur={() => setDurationMinutes(normalizedDuration)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            {canChooseBarber && (
+              <div className="space-y-1">
+                <label className="text-xs text-white/60">Barber</label>
+                <select
+                  value={targetBarberId}
+                  onChange={(e) => setTargetBarberId(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+                >
+                  {barbers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="text-xs text-white/60">
+              <span className="text-white/45">Updated time range: </span>
+              {hasValidStartAt && endAt
+                ? `${startAt.toLocaleString("en-CA", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })} – ${endAt.toLocaleString("en-CA", {
+                    timeStyle: "short",
+                  })}`
+                : "Select a valid date and time"}
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                disabled={submitting}
+                onClick={() => {
+                  setEditing(false);
+                  setError(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={submitting}
+                onClick={handleSaveBlock}
+              >
+                {submitting ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+            <Button
+              variant="secondary"
+              className="w-full border-red-500/30 text-red-200 hover:bg-red-500/10"
+              disabled={submitting}
+              onClick={handleDeleteBlock}
+            >
+              {submitting ? "Working…" : "Delete block"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-white/50">Title</dt>
+                <dd className="font-medium">{block.title}</dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Barber</dt>
+                <dd className="font-medium">{block.barberName}</dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Time</dt>
+                <dd className="font-medium">
+                  {initialStartAt.toLocaleString("en-CA", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}{" "}
+                  –{" "}
+                  {initialEndAt.toLocaleString("en-CA", {
+                    timeStyle: "short",
+                  })}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Length</dt>
+                <dd className="font-medium">
+                  {Math.round((initialEndAt.getTime() - initialStartAt.getTime()) / 60000)} min
+                </dd>
+              </div>
+            </dl>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => {
+                  setEditing(true);
+                  setError(null);
+                }}
+              >
+                Edit block
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 border-red-500/30 text-red-200 hover:bg-red-500/10"
+                disabled={submitting}
+                onClick={handleDeleteBlock}
+              >
+                {submitting ? "Deleting…" : "Delete block"}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function BookingModal({
+  booking,
+  barberId,
+  barbers,
+  isMainAdmin,
+  statusLabel,
+  onClose,
+  onSuccess,
+}: {
+  booking: BookingDetail;
+  barberId: string;
+  barbers: Barber[];
+  isMainAdmin: boolean;
+  statusLabel: Record<string, string>;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [targetBarberId, setTargetBarberId] = useState(booking.barberId);
+  const [serviceKey, setServiceKey] = useState<string>(booking.serviceKey);
+  const [startAtValue, setStartAtValue] = useState(() =>
+    toLocalDateTimeValue(new Date(booking.startAtIso)),
+  );
+  const [bookingDurationMinutes, setBookingDurationMinutes] = useState(
+    booking.durationMinutes,
+  );
+  const [customerName, setCustomerName] = useState(booking.customerName);
+  const [customerEmail, setCustomerEmail] = useState(booking.customerEmail);
+  const [customerPhone, setCustomerPhone] = useState(booking.customerPhone);
+  const [notes, setNotes] = useState(booking.notes ?? "");
+  const service = SERVICES.find((s) => s.key === serviceKey);
+
+  useEffect(() => {
+    setBookingDurationMinutes(service?.durationMinutes ?? booking.durationMinutes);
+  }, [serviceKey, service?.durationMinutes, booking.durationMinutes]);
+
+  const startAt =
+    startAtValue.trim().length > 0 ? new Date(startAtValue) : null;
+  const hasValidStartAt = !!startAt && !Number.isNaN(startAt.getTime());
+  const bookingEnd = hasValidStartAt
+    ? addMinutes(startAt, Math.round(bookingDurationMinutes))
+    : null;
+  const canChooseBarber =
+    barberId === "all" || (isMainAdmin && barbers.length > 1);
+
+  async function handleSaveBooking() {
+    if (!customerName.trim()) {
+      setError("Customer name is required");
+      return;
+    }
+    if (!targetBarberId) {
+      setError("Please select a barber");
+      return;
+    }
+    if (!serviceKey) {
+      setError("Please select a service");
+      return;
+    }
+    if (!hasValidStartAt || !startAt) {
+      setError("Please choose a valid date and time");
+      return;
+    }
+    const durationRounded = Math.round(bookingDurationMinutes);
+    if (
+      !Number.isFinite(bookingDurationMinutes) ||
+      durationRounded < MIN_BOOKING_DURATION ||
+      durationRounded > MAX_BOOKING_DURATION
+    ) {
+      setError(`Duration must be ${MIN_BOOKING_DURATION}–${MAX_BOOKING_DURATION} minutes`);
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/booking/${booking.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          barberId: targetBarberId,
+          serviceKey,
+          startAtIso: startAt.toISOString(),
+          durationMinutes: durationRounded,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: customerPhone.trim() || undefined,
+          notes: notes.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Failed to update booking");
+      onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update booking");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteBooking() {
+    const confirmed = window.confirm(
+      `Delete the booking for ${booking.customerName}?`,
+    );
+    if (!confirmed) return;
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/booking/${booking.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Failed to delete booking");
+      onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete booking");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} title={editing ? "Edit booking" : booking.customerName}>
+      <div className="mt-4 space-y-4">
+        {error && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {editing ? (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60" htmlFor="booking-start">
+                Date and time
+              </label>
+              <input
+                id="booking-start"
+                type="datetime-local"
+                value={startAtValue}
+                onChange={(e) => setStartAtValue(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            {canChooseBarber && (
+              <div className="space-y-1">
+                <label className="text-xs text-white/60">Barber</label>
+                <select
+                  value={targetBarberId}
+                  onChange={(e) => setTargetBarberId(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+                >
+                  {barbers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="space-y-1">
+              <label className="text-xs text-white/60">Service</label>
+              <select
+                value={serviceKey}
+                onChange={(e) => setServiceKey(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              >
+                {SERVICES.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.name} ({s.durationMinutes} min)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60" htmlFor="edit-booking-duration">
+                Appointment length (minutes)
+              </label>
+              <input
+                id="edit-booking-duration"
+                type="number"
+                min={MIN_BOOKING_DURATION}
+                max={MAX_BOOKING_DURATION}
+                step={5}
+                value={bookingDurationMinutes}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (Number.isNaN(value)) return;
+                  setBookingDurationMinutes(value);
+                }}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            <div className="text-xs text-white/60">
+              <span className="text-white/45">Updated time range: </span>
+              {hasValidStartAt && bookingEnd
+                ? `${startAt.toLocaleString("en-CA", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })} – ${bookingEnd.toLocaleString("en-CA", {
+                    timeStyle: "short",
+                  })}`
+                : "Select a valid date and time"}
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60">Customer name</label>
+              <input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60">Email (optional)</label>
+              <input
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60">Phone (optional)</label>
+              <input
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/60">Notes (optional)</label>
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                disabled={submitting}
+                onClick={() => {
+                  setEditing(false);
+                  setError(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={submitting}
+                onClick={handleSaveBooking}
+              >
+                {submitting ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+            <Button
+              variant="secondary"
+              className="w-full border-red-500/30 text-red-200 hover:bg-red-500/10"
+              disabled={submitting}
+              onClick={handleDeleteBooking}
+            >
+              {submitting ? "Working…" : "Delete booking"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <dl className="space-y-3 text-sm">
+              {booking.barberName && (
+                <div>
+                  <dt className="text-white/50">Barber</dt>
+                  <dd className="font-medium">{booking.barberName}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-white/50">Service</dt>
+                <dd className="font-medium">{booking.serviceName}</dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Time</dt>
+                <dd className="font-medium">{booking.timeRange}</dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Status</dt>
+                <dd>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold">
+                    {statusLabel[booking.status] ?? booking.status}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Payment</dt>
+                <dd className="font-medium">${booking.priceCad} CAD</dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Email</dt>
+                <dd className="font-medium">{booking.customerEmail || "Not provided"}</dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Phone</dt>
+                <dd className="font-medium">{booking.customerPhone || "Not provided"}</dd>
+              </div>
+              <div>
+                <dt className="text-white/50">Notes</dt>
+                <dd className="font-medium">{booking.notes || "None"}</dd>
+              </div>
+            </dl>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => {
+                  setEditing(true);
+                  setError(null);
+                }}
+              >
+                Edit booking
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 border-red-500/30 text-red-200 hover:bg-red-500/10"
+                disabled={submitting}
+                onClick={handleDeleteBooking}
+              >
+                {submitting ? "Deleting…" : "Delete booking"}
+              </Button>
+            </div>
           </>
         )}
       </div>

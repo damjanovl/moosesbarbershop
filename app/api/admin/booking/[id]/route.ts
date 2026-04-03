@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
-import crypto from "node:crypto";
 import { addMinutes } from "date-fns";
-import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, ne } from "drizzle-orm";
 
 import { getAdminUserIdFromCookies } from "@/lib/admin-auth";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { adminUsers, bookings } from "@/lib/db/schema";
-import { sendBookingConfirmedEmails } from "@/lib/email";
-import { getService, type ServiceKey } from "@/lib/services";
+import { getService, SERVICES, type ServiceKey } from "@/lib/services";
 
 const BodySchema = {
   barberId: (v: unknown) => typeof v === "string" && v.length > 0,
-  serviceKey: (v: unknown) => typeof v === "string" && v.length > 0,
+  serviceKey: (v: unknown) =>
+    typeof v === "string" && SERVICES.some((service) => service.key === v),
   startAtIso: (v: unknown) => typeof v === "string" && v.length > 0,
   customerName: (v: unknown) =>
     typeof v === "string" && v.length >= 2 && v.length <= 80,
@@ -26,11 +25,10 @@ const BodySchema = {
   notes: (v: unknown) =>
     v === undefined || (typeof v === "string" && v.length <= 500),
   durationMinutes: (v: unknown) =>
-    v === undefined ||
-    (typeof v === "number" &&
-      Number.isInteger(v) &&
-      v >= 15 &&
-      v <= 480),
+    typeof v === "number" &&
+    Number.isInteger(v) &&
+    v >= 15 &&
+    v <= 480,
 };
 
 function overlaps(
@@ -40,12 +38,10 @@ function overlaps(
   return a.startAt < b.endAt && b.startAt < a.endAt;
 }
 
-export async function POST(req: Request) {
+async function getAuthedAdmin() {
   await ensureDbSchema();
   const userId = await getAdminUserIdFromCookies();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!userId) return { userId: null, admin: null };
 
   const db = getDb();
   const [admin] = await db
@@ -54,8 +50,36 @@ export async function POST(req: Request) {
     .where(eq(adminUsers.id, userId))
     .limit(1);
 
-  if (!admin) {
+  return { userId, admin, db };
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await getAuthedAdmin();
+  if (!auth.userId || !auth.admin || !auth.db) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const { admin, userId, db } = auth;
+
+  const [existingBooking] = await db
+    .select()
+    .from(bookings)
+    .where(eq(bookings.id, id))
+    .limit(1);
+
+  if (!existingBooking) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+
+  if (existingBooking.barberId !== userId && !admin.isMainAdmin) {
+    return NextResponse.json(
+      { error: "You can only edit your own bookings" },
+      { status: 403 },
+    );
   }
 
   const json = await req.json().catch(() => null);
@@ -80,7 +104,7 @@ export async function POST(req: Request) {
     ? (typeof json.customerPhone === "string" ? json.customerPhone : "")
     : null;
   const notes = BodySchema.notes(json.notes) ? json.notes : undefined;
-  const durationOverride = BodySchema.durationMinutes(json.durationMinutes)
+  const durationMinutes = BodySchema.durationMinutes(json.durationMinutes)
     ? (json.durationMinutes as number)
     : null;
 
@@ -88,11 +112,21 @@ export async function POST(req: Request) {
     !barberId ||
     !serviceKey ||
     !startAtIso ||
-    !customerName
+    !customerName ||
+    customerEmail === null ||
+    customerPhone === null ||
+    !durationMinutes
   ) {
     return NextResponse.json(
       { error: "Missing or invalid required fields" },
       { status: 400 },
+    );
+  }
+
+  if (!admin.isMainAdmin && barberId !== userId) {
+    return NextResponse.json(
+      { error: "You can only assign bookings to yourself" },
+      { status: 403 },
     );
   }
 
@@ -106,13 +140,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Barber not found" }, { status: 404 });
   }
 
-  const service = getService(serviceKey);
   const startAt = new Date(startAtIso);
   if (Number.isNaN(startAt.getTime())) {
     return NextResponse.json({ error: "Invalid start time" }, { status: 400 });
   }
 
-  const durationMinutes = durationOverride ?? service.durationMinutes;
+  const service = getService(serviceKey);
   const endAt = addMinutes(startAt, durationMinutes);
   const candidate = { startAt, endAt };
 
@@ -120,19 +153,19 @@ export async function POST(req: Request) {
     .select({
       startAt: bookings.startAt,
       endAt: bookings.endAt,
-      status: bookings.status,
     })
     .from(bookings)
     .where(
       and(
         eq(bookings.barberId, barberId),
+        ne(bookings.id, id),
         lt(bookings.startAt, endAt),
         gt(bookings.endAt, startAt),
         inArray(bookings.status, ["CONFIRMED", "PENDING_PAYMENT"] as const),
       ),
     );
 
-  const isConflict = existing.some((b) => overlaps(candidate, b));
+  const isConflict = existing.some((booking) => overlaps(candidate, booking));
   if (isConflict) {
     return NextResponse.json(
       { error: "That time slot is already taken" },
@@ -140,41 +173,62 @@ export async function POST(req: Request) {
     );
   }
 
-  const bookingId = crypto.randomUUID();
-  const inserted = await db
-    .insert(bookings)
-    .values({
-    id: bookingId,
-    barberId,
-    status: "CONFIRMED",
-    serviceKey,
-    serviceName: service.name,
-    priceCad: service.priceCAD,
-    durationMinutes,
-    startAt,
-    endAt,
-    customerName,
-    customerEmail,
-    customerPhone,
-    notes: notes?.trim() || null,
-    expiresAt: null,
+  await db
+    .update(bookings)
+    .set({
+      barberId,
+      serviceKey,
+      serviceName: service.name,
+      priceCad: service.priceCAD,
+      durationMinutes,
+      startAt,
+      endAt,
+      customerName,
+      customerEmail,
+      customerPhone,
+      notes: notes?.trim() || null,
+      updatedAt: new Date(),
     })
-    .returning();
-
-  const booking = inserted[0];
-
-  if (booking?.customerEmail) {
-    try {
-      await sendBookingConfirmedEmails({ booking });
-    } catch (error) {
-      console.error("Failed to send manual booking confirmation email", error);
-    }
-  }
+    .where(eq(bookings.id, id));
 
   return NextResponse.json({
-    id: bookingId,
+    ok: true,
+    id,
     barberId,
     startAt: startAt.toISOString(),
     endAt: endAt.toISOString(),
   });
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await getAuthedAdmin();
+  if (!auth.userId || !auth.admin || !auth.db) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const { admin, userId, db } = auth;
+
+  const [booking] = await db
+    .select()
+    .from(bookings)
+    .where(eq(bookings.id, id))
+    .limit(1);
+
+  if (!booking) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+
+  if (booking.barberId !== userId && !admin.isMainAdmin) {
+    return NextResponse.json(
+      { error: "You can only delete your own bookings" },
+      { status: 403 },
+    );
+  }
+
+  await db.delete(bookings).where(eq(bookings.id, id));
+  return NextResponse.json({ ok: true });
 }

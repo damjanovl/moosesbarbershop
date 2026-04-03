@@ -58,21 +58,29 @@ export default async function AdminPage() {
 
   const bookingsData = rows.map((b) => ({
     id: b.id,
+    barberId: b.barberId,
     customerName: b.customerName,
     customerEmail: b.customerEmail,
     customerPhone: b.customerPhone,
+    serviceKey: b.serviceKey,
     serviceName: b.serviceName,
     priceCad: b.priceCad,
     status: b.status,
+    startAtIso: b.startAt.toISOString(),
+    durationMinutes: b.durationMinutes,
     timeRange: `${formatTimeFromUtc(b.startAt)} – ${formatTimeFromUtc(b.endAt)}`,
     barberName: barberNameById[b.barberId] ?? b.barberId,
+    notes: b.notes,
   }));
 
   const blocksData = blocks.map((b) => ({
     id: b.id,
     title: b.title,
-    start: b.startAt.toISOString(),
-    end: b.endAt.toISOString(),
+    displayTitle: b.title,
+    startAtIso: b.startAt.toISOString(),
+    endAtIso: b.endAt.toISOString(),
+    barberId: b.barberId,
+    barberName: barberNameById[b.barberId] ?? b.barberId,
   }));
 
   const viewBarber = barbers.find((b) => b.id === viewBarberId);

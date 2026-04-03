@@ -9,17 +9,30 @@ type Barber = { id: string; name: string };
 type CalendarData = {
   barbers: Barber[];
   events: Array<{ id: string; title: string; start: string; end: string; status?: string }>;
-  blocks: Array<{ id: string; title: string; start: string; end: string }>;
+  blocks: Array<{
+    id: string;
+    title: string;
+    displayTitle: string;
+    startAtIso: string;
+    endAtIso: string;
+    barberId: string;
+    barberName: string;
+  }>;
   bookings: Array<{
     id: string;
+    barberId: string;
     customerName: string;
     customerEmail: string;
     customerPhone: string;
+    serviceKey: string;
     serviceName: string;
     priceCad: number;
     status: string;
+    startAtIso: string;
+    durationMinutes: number;
     timeRange: string;
     barberName?: string;
+    notes: string | null;
   }>;
   viewBarberId: string;
   viewTitle: string;

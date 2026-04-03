@@ -106,6 +106,20 @@ function toLocalDateTimeValue(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function getAdminHeaders(
+  bearerToken: string | null,
+  contentType?: string,
+): HeadersInit {
+  const headers: HeadersInit = {};
+  if (contentType) {
+    headers["content-type"] = contentType;
+  }
+  if (bearerToken) {
+    headers.Authorization = `Bearer ${bearerToken}`;
+  }
+  return headers;
+}
+
 function Modal({
   children,
   onClose,
@@ -146,6 +160,7 @@ export function AdminCalendar({
   barberId,
   barbers,
   isMainAdmin,
+  bearerToken,
   onRefresh,
 }: {
   events: Array<{
@@ -161,6 +176,7 @@ export function AdminCalendar({
   barberId: string;
   barbers: Barber[];
   isMainAdmin: boolean;
+  bearerToken: string | null;
   onRefresh?: () => void;
 }) {
   const router = useRouter();
@@ -284,6 +300,7 @@ export function AdminCalendar({
           barberId={barberId}
           barbers={barbers}
           isMainAdmin={isMainAdmin}
+          bearerToken={bearerToken}
           statusLabel={statusLabel}
           onClose={() => setSelectedBooking(null)}
           onSuccess={() => {
@@ -300,6 +317,7 @@ export function AdminCalendar({
           barberId={barberId}
           barbers={barbers}
           isMainAdmin={isMainAdmin}
+          bearerToken={bearerToken}
           onClose={() => setSelectedBlock(null)}
           onSuccess={() => {
             setSelectedBlock(null);
@@ -317,6 +335,7 @@ export function AdminCalendar({
           barberId={barberId}
           barbers={barbers}
           isMainAdmin={isMainAdmin}
+          bearerToken={bearerToken}
           onClose={() => {
             setAddModal(null);
             setError(null);
@@ -343,6 +362,7 @@ function AddSlotModal({
   barberId,
   barbers,
   isMainAdmin,
+  bearerToken,
   onClose,
   onSuccess,
   error,
@@ -356,6 +376,7 @@ function AddSlotModal({
   barberId: string;
   barbers: Barber[];
   isMainAdmin: boolean;
+  bearerToken: string | null;
   onClose: () => void;
   onSuccess: () => void;
   error: string | null;
@@ -419,7 +440,8 @@ function AddSlotModal({
     try {
       const res = await fetch("/api/admin/blocks", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        credentials: "include",
+        headers: getAdminHeaders(bearerToken, "application/json"),
         body: JSON.stringify({
           barberId: targetBarberId,
           title: title.trim(),
@@ -464,7 +486,8 @@ function AddSlotModal({
     try {
       const res = await fetch("/api/admin/booking/create", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        credentials: "include",
+        headers: getAdminHeaders(bearerToken, "application/json"),
         body: JSON.stringify({
           barberId: targetBarberId,
           serviceKey,
@@ -696,6 +719,7 @@ function BlockModal({
   barberId,
   barbers,
   isMainAdmin,
+  bearerToken,
   onClose,
   onSuccess,
 }: {
@@ -703,6 +727,7 @@ function BlockModal({
   barberId: string;
   barbers: Barber[];
   isMainAdmin: boolean;
+  bearerToken: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -751,7 +776,8 @@ function BlockModal({
     try {
       const res = await fetch(`/api/admin/blocks/${block.id}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        credentials: "include",
+        headers: getAdminHeaders(bearerToken, "application/json"),
         body: JSON.stringify({
           barberId: targetBarberId,
           title: title.trim(),
@@ -778,6 +804,8 @@ function BlockModal({
     try {
       const res = await fetch(`/api/admin/blocks/${block.id}`, {
         method: "DELETE",
+        credentials: "include",
+        headers: getAdminHeaders(bearerToken),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? "Failed to delete block");
@@ -959,6 +987,7 @@ function BookingModal({
   barberId,
   barbers,
   isMainAdmin,
+  bearerToken,
   statusLabel,
   onClose,
   onSuccess,
@@ -967,6 +996,7 @@ function BookingModal({
   barberId: string;
   barbers: Barber[];
   isMainAdmin: boolean;
+  bearerToken: string | null;
   statusLabel: Record<string, string>;
   onClose: () => void;
   onSuccess: () => void;
@@ -1033,7 +1063,8 @@ function BookingModal({
     try {
       const res = await fetch(`/api/admin/booking/${booking.id}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        credentials: "include",
+        headers: getAdminHeaders(bearerToken, "application/json"),
         body: JSON.stringify({
           barberId: targetBarberId,
           serviceKey,
@@ -1066,6 +1097,8 @@ function BookingModal({
     try {
       const res = await fetch(`/api/admin/booking/${booking.id}`, {
         method: "DELETE",
+        credentials: "include",
+        headers: getAdminHeaders(bearerToken),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? "Failed to delete booking");

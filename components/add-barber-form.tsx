@@ -8,7 +8,21 @@ import { Button, Card } from "@/components/ui";
 
 type Barber = { id: string; name: string };
 
-export function AddBarberForm({ barbers }: { barbers: Barber[] }) {
+function getAdminHeaders(bearerToken: string | null): HeadersInit {
+  const headers: HeadersInit = { "content-type": "application/json" };
+  if (bearerToken) {
+    headers.Authorization = `Bearer ${bearerToken}`;
+  }
+  return headers;
+}
+
+export function AddBarberForm({
+  barbers,
+  bearerToken,
+}: {
+  barbers: Barber[];
+  bearerToken: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -24,7 +38,8 @@ export function AddBarberForm({ barbers }: { barbers: Barber[] }) {
     try {
       const res = await fetch("/api/admin/barbers", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        credentials: "include",
+        headers: getAdminHeaders(bearerToken),
         body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password }),
       });
       const data = await res.json().catch(() => null);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { addMinutes } from "date-fns";
 import { and, eq, gt, inArray, lt, ne } from "drizzle-orm";
 
-import { getAdminUserIdFromCookies } from "@/lib/admin-auth";
+import { getAdminUserIdFromRequest } from "@/lib/admin-auth";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { adminUsers, bookings } from "@/lib/db/schema";
@@ -38,9 +38,9 @@ function overlaps(
   return a.startAt < b.endAt && b.startAt < a.endAt;
 }
 
-async function getAuthedAdmin() {
+async function getAuthedAdmin(req: Request) {
   await ensureDbSchema();
-  const userId = await getAdminUserIdFromCookies();
+  const userId = await getAdminUserIdFromRequest(req);
   if (!userId) return { userId: null, admin: null };
 
   const db = getDb();
@@ -57,7 +57,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await getAuthedAdmin();
+  const auth = await getAuthedAdmin(req);
   if (!auth.userId || !auth.admin || !auth.db) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -204,7 +204,7 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await getAuthedAdmin();
+  const auth = await getAuthedAdmin(_req);
   if (!auth.userId || !auth.admin || !auth.db) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

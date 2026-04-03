@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { addMinutes } from "date-fns";
-import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, lt } from "drizzle-orm";
 
-import { getAdminUserIdFromCookies } from "@/lib/admin-auth";
+import { getAdminUserIdFromRequest } from "@/lib/admin-auth";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { adminUsers, bookings } from "@/lib/db/schema";
@@ -42,7 +42,7 @@ function overlaps(
 
 export async function POST(req: Request) {
   await ensureDbSchema();
-  const userId = await getAdminUserIdFromCookies();
+  const userId = await getAdminUserIdFromRequest(req);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

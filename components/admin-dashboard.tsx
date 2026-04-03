@@ -60,12 +60,10 @@ const statusLabel: Record<string, string> = {
 
 export function AdminDashboard({
   initialData,
-  userId,
   isMainAdmin,
   bearerToken,
 }: {
   initialData: CalendarData;
-  userId: string;
   isMainAdmin: boolean;
   bearerToken: string | null;
 }) {
@@ -173,7 +171,9 @@ export function AdminDashboard({
           </div>
         </div>
 
-        {isMainAdmin && <AddBarberForm barbers={data.barbers} />}
+        {isMainAdmin && (
+          <AddBarberForm barbers={data.barbers} bearerToken={bearerToken} />
+        )}
 
         <AdminCalendar
           key={data.viewBarberId}
@@ -184,6 +184,7 @@ export function AdminDashboard({
           barberId={data.viewBarberId}
           barbers={data.barbers}
           isMainAdmin={isMainAdmin}
+          bearerToken={bearerToken}
           onRefresh={refetchCurrentView}
         />
 

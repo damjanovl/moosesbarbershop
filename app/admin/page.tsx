@@ -112,7 +112,6 @@ export default async function AdminPage() {
   return (
     <AdminDashboard
       initialData={initialData}
-      userId={userId}
       isMainAdmin={!!currentUser?.isMainAdmin}
       bearerToken={bearerToken}
     />

@@ -44,6 +44,16 @@ export function verifyAdminBearerToken(
   return userId;
 }
 
+export async function getAdminUserIdFromRequest(
+  req: Request,
+): Promise<string | null> {
+  const userIdFromToken = verifyAdminBearerToken(
+    req.headers.get("authorization"),
+  );
+  if (userIdFromToken) return userIdFromToken;
+  return getAdminUserIdFromCookies();
+}
+
 export async function setAdminSession(userId: string) {
   const payload = `${userId}.${Date.now()}`;
   const token = `${payload}.${sign(payload)}`;

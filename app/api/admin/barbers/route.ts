@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 
-import { getAdminUserIdFromCookies } from "@/lib/admin-auth";
+import { getAdminUserIdFromRequest } from "@/lib/admin-auth";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { adminUsers } from "@/lib/db/schema";
@@ -10,7 +10,7 @@ import { hashPassword } from "@/lib/password";
 
 export async function POST(req: Request) {
   await ensureDbSchema();
-  const userId = await getAdminUserIdFromCookies();
+  const userId = await getAdminUserIdFromRequest(req);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Container, Card, Button } from "@/components/ui";
 import { AdminCalendar } from "@/components/admin-calendar";
 import { AddBarberForm } from "@/components/add-barber-form";
@@ -73,8 +73,34 @@ export function AdminDashboard({
   const [data, setData] = useState<CalendarData>(initialData);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [currentBearerToken, setCurrentBearerToken] = useState(bearerToken);
+  const tokenRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refetchCurrentView = () => setRefreshKey((k) => k + 1);
+
+  useEffect(() => {
+    const REFRESH_MS = 20 * 60 * 1000; // refresh 10 min before the 30-min bearer expiry
+
+    async function refreshToken() {
+      try {
+        const res = await fetch("/api/admin/refresh-token", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.token) setCurrentBearerToken(json.token);
+        }
+      } catch {
+        // keep current token; next interval will retry
+      }
+    }
+
+    tokenRefreshRef.current = setInterval(refreshToken, REFRESH_MS);
+    return () => {
+      if (tokenRefreshRef.current) clearInterval(tokenRefreshRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setData((prev) => ({ ...prev, barbers: initialData.barbers }));
@@ -87,8 +113,8 @@ export function AdminDashboard({
     async function load() {
       try {
         const headers: HeadersInit = { "Cache-Control": "no-store" };
-        if (bearerToken) {
-          headers["Authorization"] = `Bearer ${bearerToken}`;
+        if (currentBearerToken) {
+          headers["Authorization"] = `Bearer ${currentBearerToken}`;
         }
         const res = await fetch(
           `/api/admin/calendar?barber=${encodeURIComponent(viewBarber)}`,
@@ -113,7 +139,7 @@ export function AdminDashboard({
     return () => {
       cancelled = true;
     };
-  }, [viewBarber, refreshKey, bearerToken]);
+  }, [viewBarber, refreshKey, currentBearerToken]);
 
   const rows = data.rows ?? [];
 
@@ -172,7 +198,7 @@ export function AdminDashboard({
         </div>
 
         {isMainAdmin && (
-          <AddBarberForm barbers={data.barbers} bearerToken={bearerToken} />
+          <AddBarberForm barbers={data.barbers} bearerToken={currentBearerToken} />
         )}
 
         <AdminCalendar
@@ -184,7 +210,7 @@ export function AdminDashboard({
           barberId={data.viewBarberId}
           barbers={data.barbers}
           isMainAdmin={isMainAdmin}
-          bearerToken={bearerToken}
+          bearerToken={currentBearerToken}
           onRefresh={refetchCurrentView}
         />
 

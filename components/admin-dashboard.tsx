@@ -79,8 +79,6 @@ export function AdminDashboard({
   const refetchCurrentView = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
-    const REFRESH_MS = 20 * 60 * 1000; // refresh 10 min before the 30-min bearer expiry
-
     async function refreshToken() {
       try {
         const res = await fetch("/api/admin/refresh-token", {
@@ -92,13 +90,24 @@ export function AdminDashboard({
           if (json.token) setCurrentBearerToken(json.token);
         }
       } catch {
-        // keep current token; next interval will retry
+        // keep current token; next tick will retry
       }
     }
 
-    tokenRefreshRef.current = setInterval(refreshToken, REFRESH_MS);
+    // Refresh every 10 minutes as a background heartbeat
+    tokenRefreshRef.current = setInterval(refreshToken, 10 * 60 * 1000);
+
+    // Refresh immediately whenever the user switches back to this tab —
+    // this covers the case where the browser throttled the interval while
+    // the tab was in the background and the bearer token expired.
+    function onVisible() {
+      if (document.visibilityState === "visible") refreshToken();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       if (tokenRefreshRef.current) clearInterval(tokenRefreshRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

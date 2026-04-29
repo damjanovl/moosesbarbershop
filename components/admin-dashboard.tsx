@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Container, Card, Button } from "@/components/ui";
 import { AdminCalendar } from "@/components/admin-calendar";
 import { AddBarberForm } from "@/components/add-barber-form";
@@ -76,6 +77,7 @@ export function AdminDashboard({
   const [currentBearerToken, setCurrentBearerToken] = useState(bearerToken);
   const tokenRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const router = useRouter();
   const refetchCurrentView = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
@@ -85,12 +87,17 @@ export function AdminDashboard({
           credentials: "include",
           cache: "no-store",
         });
+        if (res.status === 401) {
+          // Session cookie has expired — send the user back to login
+          router.replace("/admin/login");
+          return;
+        }
         if (res.ok) {
           const json = await res.json();
           if (json.token) setCurrentBearerToken(json.token);
         }
       } catch {
-        // keep current token; next tick will retry
+        // Network error — keep the current token and retry next tick
       }
     }
 
@@ -109,7 +116,7 @@ export function AdminDashboard({
       if (tokenRefreshRef.current) clearInterval(tokenRefreshRef.current);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     setData((prev) => ({ ...prev, barbers: initialData.barbers }));

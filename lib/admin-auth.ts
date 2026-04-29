@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 
 const COOKIE_NAME = "moose_admin";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
-const BEARER_TOKEN_MAX_AGE_SECONDS = 60 * 30; // 30 minutes
+const BEARER_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 8; // 8 hours
 
 function getSecret() {
   const secret = process.env.ADMIN_SESSION_SECRET;
@@ -20,9 +20,12 @@ function sign(value: string) {
 export async function createAdminBearerToken(): Promise<string | null> {
   const userId = await getAdminUserIdFromCookies();
   if (!userId) return null;
+  return mintAdminBearerToken(userId);
+}
+
+export function mintAdminBearerToken(userId: string): string {
   const payload = `${userId}.${Date.now()}`;
-  const token = `${payload}.${sign(payload)}`;
-  return token;
+  return `${payload}.${sign(payload)}`;
 }
 
 export function verifyAdminBearerToken(

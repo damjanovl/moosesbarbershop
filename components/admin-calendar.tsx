@@ -120,6 +120,15 @@ function getAdminHeaders(
   return headers;
 }
 
+function apiErrorMessage(
+  res: Response,
+  data: { error?: string } | null,
+  fallback: string,
+): string {
+  if (res.status === 401) return "Session expired — please reload the page to sign in again.";
+  return data?.error ?? fallback;
+}
+
 function Modal({
   children,
   onClose,
@@ -450,7 +459,7 @@ function AddSlotModal({
         }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Failed to add block");
+      if (!res.ok) throw new Error(apiErrorMessage(res, data, "Failed to add block"));
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add block");
@@ -500,7 +509,7 @@ function AddSlotModal({
         }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Failed to add booking");
+      if (!res.ok) throw new Error(apiErrorMessage(res, data, "Failed to add booking"));
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add booking");
@@ -786,7 +795,7 @@ function BlockModal({
         }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Failed to update block");
+      if (!res.ok) throw new Error(apiErrorMessage(res, data, "Failed to update block"));
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update block");
@@ -808,7 +817,7 @@ function BlockModal({
         headers: getAdminHeaders(bearerToken),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Failed to delete block");
+      if (!res.ok) throw new Error(apiErrorMessage(res, data, "Failed to delete block"));
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete block");
@@ -1077,7 +1086,7 @@ function BookingModal({
         }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Failed to update booking");
+      if (!res.ok) throw new Error(apiErrorMessage(res, data, "Failed to update booking"));
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update booking");
@@ -1101,7 +1110,7 @@ function BookingModal({
         headers: getAdminHeaders(bearerToken),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Failed to delete booking");
+      if (!res.ok) throw new Error(apiErrorMessage(res, data, "Failed to delete booking"));
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete booking");

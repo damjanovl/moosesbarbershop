@@ -60,11 +60,11 @@ const statusColors: Record<string, { bg: string; border: string }> = {
 const BLOCK_COLOR = { bg: "rgba(100, 100, 100, 0.6)", border: "transparent" };
 
 /** Same slot step as `<Calendar step={…} />` — used for business-hour overlap checks. */
-const CALENDAR_STEP_MINUTES = 30;
+const CALENDAR_STEP_MINUTES = 15;
 
 const MIN_BOOKING_DURATION = 15;
 const MAX_BOOKING_DURATION = 480;
-/** Block / manual length picker step (calendar slots remain {CALENDAR_STEP_MINUTES} min). */
+/** Block / manual length picker step (matches calendar slot granularity). */
 const DURATION_PICKER_STEP = 15;
 
 function normalizeBlockDurationMinutes(minutes: number): number {
@@ -275,6 +275,7 @@ export function AdminCalendar({
             min={CALENDAR_MIN_TIME}
             max={CALENDAR_MAX_TIME}
             step={CALENDAR_STEP_MINUTES}
+            timeslots={4}
             slotPropGetter={(date) =>
               slotOverlapsBusinessHours(date, CALENDAR_STEP_MINUTES)
                 ? {}

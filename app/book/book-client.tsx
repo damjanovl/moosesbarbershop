@@ -289,7 +289,7 @@ export default function BookClient() {
                       type="date"
                       value={dateISO}
                       onChange={(e) => setDateISO(e.target.value)}
-                      className="h-10 rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25"
+                      className="h-10 rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-white/25 [color-scheme:dark]"
                     />
                   </div>
                 </div>

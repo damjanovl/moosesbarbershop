@@ -270,32 +270,32 @@ export default async function Home() {
                   <div className="text-sm font-semibold">Hours</div>
                   <div className="mt-2 space-y-1 text-sm text-white/70">
                     <div className="flex justify-between gap-4">
+                      <span>Sunday</span>
+                      <span>11:00 AM – 5:00 PM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
                       <span>Monday</span>
-                      <span>12:00 PM - 6:00 PM</span>
+                      <span>11:00 AM – 5:00 PM</span>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span>Tuesday</span>
-                      <span>12:00 PM - 7:00 PM</span>
+                      <span>11:00 AM – 7:00 PM</span>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span>Wednesday</span>
-                      <span>12:00 PM - 7:00 PM</span>
+                      <span>11:00 AM – 7:00 PM</span>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span>Thursday</span>
-                      <span>11:00 AM - 8:00 PM</span>
+                      <span>10:00 AM – 8:00 PM</span>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span>Friday</span>
-                      <span>11:00 AM - 8:00 PM</span>
+                      <span>10:00 AM – 8:00 PM</span>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span>Saturday</span>
-                      <span>10:00 AM - 5:00 PM</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span>Sunday</span>
-                      <span>Closed</span>
+                      <span>9:00 AM – 5:00 PM</span>
                     </div>
                   </div>
                 </div>

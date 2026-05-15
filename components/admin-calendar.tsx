@@ -77,16 +77,16 @@ function normalizeBlockDurationMinutes(minutes: number): number {
 
 /**
  * Business hours by `getDay()` index: 0 Sun … 6 Sat. Times are minutes from midnight.
- * Mon 11–5, Tue–Wed 11–7, Thu–Fri 10–8, Sat 9–6, Sun 11–5.
+ * Sun–Mon 11–5, Tue–Wed 11–7, Thu–Fri 10–8, Sat 9–5.
  */
 const BUSINESS_MINUTES_BY_WEEKDAY: Record<number, { open: number; close: number }> = {
-  0: { open: 11 * 60, close: 17 * 60 },
-  1: { open: 11 * 60, close: 17 * 60 },
-  2: { open: 11 * 60, close: 19 * 60 },
-  3: { open: 11 * 60, close: 19 * 60 },
-  4: { open: 10 * 60, close: 20 * 60 },
-  5: { open: 10 * 60, close: 20 * 60 },
-  6: { open: 9 * 60, close: 18 * 60 },
+  0: { open: 11 * 60, close: 17 * 60 }, // Sunday
+  1: { open: 11 * 60, close: 17 * 60 }, // Monday
+  2: { open: 11 * 60, close: 19 * 60 }, // Tuesday
+  3: { open: 11 * 60, close: 19 * 60 }, // Wednesday
+  4: { open: 10 * 60, close: 20 * 60 }, // Thursday
+  5: { open: 10 * 60, close: 20 * 60 }, // Friday
+  6: { open: 9 * 60, close: 17 * 60 },  // Saturday
 };
 
 /** Earliest open / latest close across the week — bounds the time grid (week + day views). */

@@ -6,6 +6,7 @@ import { getAdminUserIdFromRequest } from "@/lib/admin-auth";
 import { ensureDbSchema } from "@/lib/db/ensure";
 import { getDb } from "@/lib/db";
 import { adminUsers, bookings } from "@/lib/db/schema";
+import { sendBookingUpdatedAdminEmail, sendBookingDeletedAdminEmail } from "@/lib/email";
 import { getService, SERVICES, type ServiceKey } from "@/lib/services";
 
 const BodySchema = {
@@ -173,7 +174,7 @@ export async function PATCH(
     );
   }
 
-  await db
+  const updated = await db
     .update(bookings)
     .set({
       barberId,
@@ -189,7 +190,16 @@ export async function PATCH(
       notes: notes?.trim() || null,
       updatedAt: new Date(),
     })
-    .where(eq(bookings.id, id));
+    .where(eq(bookings.id, id))
+    .returning();
+
+  if (updated[0]) {
+    try {
+      await sendBookingUpdatedAdminEmail({ booking: updated[0] });
+    } catch (err) {
+      console.error("Failed to send booking update notification", err);
+    }
+  }
 
   return NextResponse.json({
     ok: true,
@@ -230,5 +240,12 @@ export async function DELETE(
   }
 
   await db.delete(bookings).where(eq(bookings.id, id));
+
+  try {
+    await sendBookingDeletedAdminEmail({ booking });
+  } catch (err) {
+    console.error("Failed to send booking deletion notification", err);
+  }
+
   return NextResponse.json({ ok: true });
 }

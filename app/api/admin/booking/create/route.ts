@@ -163,7 +163,7 @@ export async function POST(req: Request) {
 
   const booking = inserted[0];
 
-  if (booking?.customerEmail) {
+  if (booking) {
     try {
       await sendBookingConfirmedEmails({ booking });
     } catch (error) {

@@ -7,13 +7,13 @@ export type WeeklyHours = Record<
 
 // 0=Sunday ... 6=Saturday (JS Date convention)
 export const WEEKLY_HOURS: WeeklyHours = {
-  0: { closed: true },
-  1: { open: "12:00", close: "18:00" },
-  2: { open: "12:00", close: "19:00" },
-  3: { open: "12:00", close: "19:00" },
-  4: { open: "11:00", close: "20:00" },
-  5: { open: "11:00", close: "20:00" },
-  6: { open: "10:00", close: "17:00" },
+  0: { open: "11:00", close: "17:00" }, // Sunday
+  1: { open: "11:00", close: "17:00" }, // Monday
+  2: { open: "11:00", close: "19:00" }, // Tuesday
+  3: { open: "11:00", close: "19:00" }, // Wednesday
+  4: { open: "10:00", close: "20:00" }, // Thursday
+  5: { open: "10:00", close: "20:00" }, // Friday
+  6: { open: "09:00", close: "17:00" }, // Saturday
 };
 
 export const SLOT_INTERVAL_MINUTES = 15;

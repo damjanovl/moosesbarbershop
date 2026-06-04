@@ -5,6 +5,7 @@ import { formatInTimeZone } from "date-fns-tz";
 
 import { SHOP_TIMEZONE } from "@/lib/business";
 import type { BookingRow } from "@/lib/db/schema";
+import { sendBookingConfirmedSms } from "@/lib/sms";
 
 // Owner always receives appointment notifications at this address.
 // Override by setting ADMIN_EMAIL in your environment.
@@ -86,6 +87,14 @@ export async function sendBookingConfirmedEmails(opts: { booking: BookingRow }) 
     subject: `[New Booking] ${subject}`,
     text: bookingAdminText("New confirmed booking.", b, when),
   });
+
+  if (b.customerPhone) {
+    try {
+      await sendBookingConfirmedSms(b);
+    } catch (err) {
+      console.error("Failed to send booking confirmation SMS", err);
+    }
+  }
 }
 
 /** Notifies the owner when an existing booking is edited in the admin panel. */
